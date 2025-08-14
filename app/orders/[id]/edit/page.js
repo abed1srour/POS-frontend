@@ -35,6 +35,23 @@ const Icon = {
       <path d="M9 18h6" />
     </svg>
   ),
+  Phone: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  ),
+  MapPin: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+  DollarSign: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
 };
 
 export default function EditOrderPage() {
@@ -143,12 +160,12 @@ export default function EditOrderPage() {
             <p className="text-red-600 dark:text-red-400 text-lg font-medium mb-4">
               {error || "Order not found"}
             </p>
-            <button
-              onClick={() => router.push("/orders")}
-              className="rounded-2xl bg-indigo-500 px-6 py-3 text-white font-medium hover:bg-indigo-600 transition-colors"
-            >
-              Back to Orders
-            </button>
+                         <button
+               onClick={() => router.push(`/orders/${orderId}`)}
+               className="rounded-2xl bg-indigo-500 px-6 py-3 text-white font-medium hover:bg-indigo-600 transition-colors"
+             >
+               Back to Order
+             </button>
           </div>
         </div>
       </Layout>
@@ -159,177 +176,201 @@ export default function EditOrderPage() {
     <Layout title={`Edit Order #${order.id}`}>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push(`/orders/${order.id}`)}
-              className="flex items-center gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Icon.ArrowLeft className="h-5 w-5" />
-              Back to Order
-            </button>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Edit Order #{order.id}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                Update order information and status
-              </p>
-            </div>
+        <div className="flex items-center gap-6">
+                     <button
+             onClick={() => router.push(`/orders/${orderId}`)}
+             className="flex items-center gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+           >
+             <Icon.ArrowLeft className="h-5 w-5" />
+             Back to Order
+           </button>
+          <div>
+            <h1 className="text-gray-600 dark:text-gray-400 text-lg">
+              Edit Order #{order.id}
+            </h1>
+          </div>
+          <div>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              Update order information and status
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Edit Form */}
-          <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
-                  <Icon.Package className="h-6 w-6 text-indigo-500" />
-                  Order Information
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+           {/* Edit Form */}
+           <div className="lg:col-span-2">
+             <form onSubmit={handleSubmit} className="h-full flex flex-col">
+                               <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-4 flex-1">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                    <Icon.Package className="h-5 w-5 text-indigo-500" />
+                    Order Information
+                  </h2>
+                 
+                                   <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Order Status *
+                      </label>
+                      <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                        className="w-full rounded-xl border border-gray-200/60 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Method
+                      </label>
+                      <select
+                        name="payment_method"
+                        value={formData.payment_method}
+                        onChange={handleInputChange}
+                        className="w-full rounded-xl border border-gray-200/60 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="wish">Wish</option>
+                      </select>
+                    </div>
+
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Notes
+                      </label>
+                      <textarea
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        rows="4"
+                        className="w-full rounded-xl border border-gray-200/60 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white h-full min-h-[120px]"
+                        placeholder="Add any additional notes about this order..."
+                      />
+                    </div>
+                  </div>
+               </div>
+
+                               {/* Submit Button */}
+                <div className="flex gap-4 mt-4">
+                 <button
+                   type="button"
+                   onClick={() => router.push(`/orders/${orderId}`)}
+                   className="flex-1 rounded-2xl bg-red-500 px-6 py-4 text-base font-bold text-white shadow-xl hover:bg-red-600 transition-all duration-200"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   type="submit"
+                   disabled={saving}
+                   className="flex-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 text-base font-bold text-white shadow-xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                 >
+                   {saving ? (
+                     <>
+                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                       Saving...
+                     </>
+                   ) : (
+                     <>
+                       <Icon.Save className="h-5 w-5" />
+                       Save Changes
+                     </>
+                   )}
+                 </button>
+               </div>
+             </form>
+           </div>
+
+                       {/* Order Summary */}
+            <div className="h-full flex flex-col space-y-4">
+                         {/* Customer Information */}
+             <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-4">
+               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                 <Icon.User className="h-5 w-5 text-indigo-500" />
+                 Customer Information
+               </h2>
+               
+               <div className="space-y-3">
+                 <div className="flex items-center gap-3">
+                   <div className="h-6 w-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                     <Icon.User className="h-3 w-3 text-white" />
+                   </div>
+                   <div>
+                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Name</p>
+                     <p className="text-sm font-bold text-gray-900 dark:text-white">
+                       {order.first_name} {order.last_name}
+                     </p>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <div className="h-6 w-6 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                     <Icon.Phone className="h-3 w-3 text-white" />
+                   </div>
+                   <div>
+                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Phone</p>
+                     <p className="text-sm text-gray-900 dark:text-white">
+                       {order.phone_number || "No phone"}
+                     </p>
+                   </div>
+                 </div>
+                 {order.address && (
+                   <div className="flex items-center gap-3">
+                     <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                       <Icon.MapPin className="h-3 w-3 text-white" />
+                     </div>
+                     <div>
+                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Address</p>
+                       <p className="text-sm text-gray-900 dark:text-white">
+                         {order.address}
+                       </p>
+                     </div>
+                   </div>
+                 )}
+               </div>
+            </div>
+
+                                                   {/* Order Summary */}
+              <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-4 flex-1">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                  Order Summary
                 </h2>
                 
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Order Status *
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="w-full rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Order ID:</span>
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">#{order.id}</span>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Payment Method
-                    </label>
-                    <select
-                      name="payment_method"
-                      value={formData.payment_method}
-                      onChange={handleInputChange}
-                      className="w-full rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                    >
-                      <option value="cash">Cash</option>
-                      <option value="card">Card</option>
-                      <option value="bank_transfer">Bank Transfer</option>
-                      <option value="mobile_money">Mobile Money</option>
-                      <option value="check">Check</option>
-                    </select>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Amount:</span>
+                    <span className="font-bold text-lg text-white">
+                      ${parseFloat(order.total_amount || 0).toFixed(2)}
+                    </span>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Notes
-                    </label>
-                    <textarea
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleInputChange}
-                      rows="4"
-                      className="w-full rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                      placeholder="Add any additional notes about this order..."
-                    />
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Paid Amount:</span>
+                    <span className="font-bold text-base text-white">
+                      ${parseFloat(order.total_paid || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Remaining:</span>
+                    <span className={`font-bold text-base ${parseFloat(order.total_paid || 0) >= parseFloat(order.total_amount || 0) ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>
+                      ${Math.max(0, parseFloat(order.total_amount || 0) - parseFloat(order.total_paid || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Items:</span>
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">
+                      {order.items?.length || 0}
+                    </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => router.push(`/orders/${order.id}`)}
-                  className="flex-1 rounded-2xl border border-gray-200/60 bg-white/70 px-6 py-4 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 text-base font-bold text-white shadow-xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {saving ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Icon.Save className="h-5 w-5" />
-                      Save Changes
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Order Summary */}
-          <div className="space-y-6">
-            {/* Customer Information */}
-            <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
-                <Icon.User className="h-6 w-6 text-indigo-500" />
-                Customer Information
-              </h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Name</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white">
-                    {order.first_name} {order.last_name}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phone</p>
-                  <p className="text-lg text-gray-900 dark:text-white">
-                    {order.phone_number || "No phone"}
-                  </p>
-                </div>
-                {order.address && (
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Address</p>
-                    <p className="text-lg text-gray-900 dark:text-white">
-                      {order.address}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Order Summary */}
-            <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                Order Summary
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Order ID:</span>
-                  <span className="font-bold text-gray-900 dark:text-white">#{order.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Total Amount:</span>
-                  <span className="font-bold text-2xl text-indigo-600 dark:text-indigo-400">
-                    ${parseFloat(order.total_amount || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Items:</span>
-                  <span className="font-bold text-gray-900 dark:text-white">
-                    {order.items?.length || 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+             </div>
+           </div>
         </div>
       </div>
     </Layout>

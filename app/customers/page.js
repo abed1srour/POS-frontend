@@ -77,6 +77,23 @@ const Icon = {
       <circle cx="12" cy="7" r="4" />
     </svg>
   ),
+  RecycleBin: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  ),
+  Restore: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  ),
 };
 
 function cn(...classes) {
@@ -127,6 +144,10 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [recycleBinOpen, setRecycleBinOpen] = useState(false);
+  const [deletedCustomers, setDeletedCustomers] = useState([]);
+  const [deletedCustomersLoading, setDeletedCustomersLoading] = useState(false);
+  const [clearBinConfirm, setClearBinConfirm] = useState(false);
 
   const offset = useMemo(() => (page - 1) * limit, [page, limit]);
   const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
@@ -164,6 +185,24 @@ export default function CustomersPage() {
       setErr(e?.message || "Failed to load");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDeletedCustomers() {
+    setDeletedCustomersLoading(true);
+    try {
+      const res = await fetch(api("/api/customers?includeDeleted=true&limit=100"), {
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+      if (res.status === 401) return router.replace("/login");
+      if (!res.ok) throw new Error(`Failed (${res.status})`);
+      const data = await res.json();
+      setDeletedCustomers(data.data || data || []);
+    } catch (e) {
+      console.error("Failed to fetch deleted customers:", e);
+    } finally {
+      setDeletedCustomersLoading(false);
     }
   }
 
@@ -213,6 +252,19 @@ export default function CustomersPage() {
     const res = await fetch(api(`/api/customers/${p.id}`), { method: "DELETE", headers: authHeaders() });
     if (res.status === 401) return router.replace("/login");
     if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+  }
+
+  async function restoreCustomer(p) {
+    const res = await fetch(api(`/api/customers/${p.id}/restore`), { method: "PATCH", headers: authHeaders() });
+    if (res.status === 401) return router.replace("/login");
+    if (!res.ok) throw new Error(`Restore failed (${res.status})`);
+  }
+
+  async function clearRecycleBin() {
+    const res = await fetch(api(`/api/customers/recycle-bin/clear`), { method: "DELETE", headers: authHeaders() });
+    if (res.status === 401) return router.replace("/login");
+    if (!res.ok) throw new Error(`Clear bin failed (${res.status})`);
+    return res.json();
   }
 
   // Form state for create/edit
@@ -345,8 +397,20 @@ export default function CustomersPage() {
             </button>
           </div>
 
-          {/* Right side - Search */}
+          {/* Right side - Search and Recycle Bin */}
           <div className="flex items-center gap-3">
+            {/* Recycle Bin Button */}
+            <button
+              onClick={() => {
+                setRecycleBinOpen(true);
+                fetchDeletedCustomers();
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white/70 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              <Icon.RecycleBin className="h-4 w-4" />
+              Recycle Bin
+            </button>
+
             <div className="relative">
               <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -445,7 +509,7 @@ export default function CustomersPage() {
                         </button>
                         <button 
                           onClick={() => handleViewMore(r)} 
-                          className="rounded-lg bg-indigo-500 px-2 py-1.5 text-xs font-medium text-white hover:bg-indigo-600 transition-colors whitespace-nowrap"
+                          className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap"
                           title="View more details"
                         >
                           View More
@@ -497,6 +561,107 @@ export default function CustomersPage() {
           <div className="flex items-center justify-end gap-2">
             <button onClick={()=>setDeleting(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10 dark:text-white">Cancel</button>
             <button onClick={async()=>{ if (!deleting) return; await deleteCustomer(deleting); setDeleting(null); await fetchList(); }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">Delete</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Recycle Bin Modal */}
+      <Modal open={recycleBinOpen} onClose={() => setRecycleBinOpen(false)}>
+        <div className="space-y-4 max-h-[70vh] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Recycle Bin</h3>
+            <div className="flex items-center gap-2">
+              {deletedCustomers.length > 0 && (
+                <button
+                  onClick={() => setClearBinConfirm(true)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600 transition-colors"
+                  title="Clear all deleted customers"
+                >
+                  <Icon.Trash className="h-3 w-3" />
+                  Clear Bin
+                </button>
+              )}
+              <button 
+                onClick={() => setRecycleBinOpen(false)}
+                className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {deletedCustomersLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading deleted customers...</div>
+            ) : deletedCustomers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No deleted customers found</div>
+            ) : (
+              <div className="space-y-2">
+                {deletedCustomers.map((customer) => (
+                  <div key={customer.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-200/60 bg-white/50 dark:border-white/10 dark:bg-white/5">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{customer.first_name} {customer.last_name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        ID: {customer.id} • Deleted: {new Date(customer.deleted_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await restoreCustomer(customer);
+                          await fetchDeletedCustomers();
+                          await fetchList();
+                        } catch (error) {
+                          console.error("Failed to restore customer:", error);
+                        }
+                      }}
+                      className="ml-3 inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600 transition-colors"
+                      title="Restore customer"
+                    >
+                      <Icon.Restore className="h-3 w-3" />
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Clear Bin Confirmation Modal */}
+      <Modal open={clearBinConfirm} onClose={() => setClearBinConfirm(false)}>
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold">Clear Recycle Bin</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Are you sure you want to permanently delete all {deletedCustomers.length} items in the recycle bin? 
+            This action cannot be undone and will permanently remove all deleted customers.
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <button 
+              onClick={() => setClearBinConfirm(false)} 
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  await clearRecycleBin();
+                  setClearBinConfirm(false);
+                  setRecycleBinOpen(false);
+                  await fetchDeletedCustomers();
+                  await fetchList();
+                } catch (error) {
+                  console.error("Failed to clear recycle bin:", error);
+                }
+              }} 
+              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+            >
+              Clear All
+            </button>
           </div>
         </div>
       </Modal>
