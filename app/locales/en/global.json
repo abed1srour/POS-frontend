@@ -1,0 +1,69 @@
+{
+  "common": {
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "categories": "Categories",
+    "suppliers": "Suppliers",
+    "customers": "Customers",
+    "orders": "Orders",
+    "payments": "Payments",
+    "company_payments": "Company Payments",
+    "purchase_orders": "Purchase Orders",
+    "inventory": "Inventory",
+    "employees": "Employees",
+    "invoices": "Invoices",
+    "warranties": "Warranties",
+    "settings": "Settings",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "no_data": "No data found",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "navigation": {
+    "sales": "Sales",
+    "purchases": "Purchases",
+    "inventory_management": "Inventory Management",
+    "people": "People",
+    "reports": "Reports"
+  },
+  "dashboard": {
+    "welcome": "Welcome to POS System",
+    "total_sales": "Total Sales",
+    "total_orders": "Total Orders",
+    "total_customers": "Total Customers",
+    "total_products": "Total Products"
+  },
+  "products": {
+    "add_product": "Add Product",
+    "product_name": "Product Name",
+    "price": "Price",
+    "cost_price": "Cost Price",
+    "stock": "Stock",
+    "category": "Category",
+    "supplier": "Supplier",
+    "sku": "SKU",
+    "barcode": "Barcode",
+    "description": "Description"
+  },
+  "orders": {
+    "order_id": "Order ID",
+    "customer": "Customer",
+    "total_amount": "Total Amount",
+    "status": "Status",
+    "date": "Date",
+    "pending": "Pending",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "processing": "Processing"
+  }
+}

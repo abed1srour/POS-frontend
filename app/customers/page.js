@@ -86,6 +86,12 @@ const Icon = {
       <path d="M14 11v6" />
     </svg>
   ),
+  Eye: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
   Restore: (p) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
       <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -148,6 +154,9 @@ export default function CustomersPage() {
   const [deletedCustomers, setDeletedCustomers] = useState([]);
   const [deletedCustomersLoading, setDeletedCustomersLoading] = useState(false);
   const [clearBinConfirm, setClearBinConfirm] = useState(false);
+
+  // Toast state
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const offset = useMemo(() => (page - 1) * limit, [page, limit]);
   const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
@@ -213,6 +222,11 @@ export default function CustomersPage() {
     else { setSort(col); setOrder("asc"); }
   }
 
+  function showToast(message, type = "success") {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 5000);
+  }
+
   function handleViewMore(customer) {
     router.push(`/customers/${customer.id}`);
   }
@@ -246,12 +260,69 @@ export default function CustomersPage() {
     });
     if (res.status === 401) return router.replace("/login");
     if (!res.ok) throw new Error(`Save failed (${res.status})`);
+    
+    // Return the response data for new customers
+    if (!isEdit) {
+      const data = await res.json();
+      return data.data || data;
+    }
+  }
+
+  async function checkCustomerUnpaidBalance(customerId) {
+    try {
+      const res = await fetch(api(`/api/orders?customer_id=${customerId}&limit=1000`), {
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+      if (res.status === 401) return router.replace("/login");
+      if (!res.ok) throw new Error(`Failed to check orders (${res.status})`);
+      
+      const data = await res.json();
+      const orders = data.data || data || [];
+      
+      // Check if any order has unpaid balance
+      const unpaidOrders = orders.filter(order => {
+        const totalAmount = parseFloat(order.total_amount || 0);
+        const totalPaid = parseFloat(order.total_paid || 0);
+        return totalPaid < totalAmount;
+      });
+      
+      if (unpaidOrders.length > 0) {
+        const totalUnpaid = unpaidOrders.reduce((sum, order) => {
+          const totalAmount = parseFloat(order.total_amount || 0);
+          const totalPaid = parseFloat(order.total_paid || 0);
+          return sum + (totalAmount - totalPaid);
+        }, 0);
+        
+        return {
+          hasUnpaidBalance: true,
+          unpaidAmount: totalUnpaid,
+          unpaidOrdersCount: unpaidOrders.length
+        };
+      }
+      
+      return { hasUnpaidBalance: false, unpaidAmount: 0, unpaidOrdersCount: 0 };
+    } catch (error) {
+      console.error("Error checking unpaid balance:", error);
+      return { hasUnpaidBalance: false, unpaidAmount: 0, unpaidOrdersCount: 0 };
+    }
   }
 
   async function deleteCustomer(p) {
+    // Check for unpaid balance before deleting
+    const balanceCheck = await checkCustomerUnpaidBalance(p.id);
+    
+    if (balanceCheck.hasUnpaidBalance) {
+      showToast(`Cannot delete customer. There are ${balanceCheck.unpaidOrdersCount} order(s) with unpaid balance of $${balanceCheck.unpaidAmount.toFixed(2)}. Please ensure all payments are completed before deleting.`, "error");
+      return false;
+    }
+    
     const res = await fetch(api(`/api/customers/${p.id}`), { method: "DELETE", headers: authHeaders() });
     if (res.status === 401) return router.replace("/login");
     if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+    
+    showToast("Customer deleted successfully", "success");
+    return true;
   }
 
   async function restoreCustomer(p) {
@@ -284,8 +355,8 @@ export default function CustomersPage() {
       e.preventDefault();
       setBusy(true); setError(null);
       try {
-        await saveCustomer(form, Boolean(initial?.id));
-        onSaved();
+        const savedCustomer = await saveCustomer(form, Boolean(initial?.id));
+        onSaved(savedCustomer);
       } catch (e) {
         setError(e?.message || "Failed to save");
       } finally { setBusy(false); }
@@ -427,7 +498,7 @@ export default function CustomersPage() {
         <div className="overflow-hidden rounded-3xl border border-gray-200/60 bg-white/80 shadow-xl dark:border-white/10 dark:bg-white/5">
           <div className="overflow-x-auto table-container">
             <table className="w-full min-w-full text-left text-sm table-full-width table-optimized">
-              <thead className="bg-gray-50/60 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-white/5 dark:to-white/10 text-sm text-gray-600 dark:text-gray-300">
                 <tr>
                   {[
                     { key: "id", label: "ID", w: "w-20" },
@@ -437,9 +508,9 @@ export default function CustomersPage() {
                     { key: "phone_number", label: "Phone Number", w: "w-48" },
                     { key: "_", label: "Actions", w: "w-48" },
                   ].map((c) => (
-                    <th key={c.key} className={cn("px-4 py-3 font-medium whitespace-nowrap", c.w)}>
+                    <th key={c.key} className={cn("px-4 py-3 text-center font-bold whitespace-nowrap", c.w)}>
                       {c.key !== "_" ? (
-                        <button onClick={() => toggleSort(c.key)} className="flex items-center gap-1 hover:underline">
+                        <button onClick={() => toggleSort(c.key)} className="flex items-center justify-center gap-1 hover:underline w-full">
                           {c.label}
                           {sort === c.key && (
                             <span className="text-[10px]">{order === "asc" ? "▲" : "▼"}</span>
@@ -458,61 +529,52 @@ export default function CustomersPage() {
                     <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</td>
                   </tr>
                 )}
-                {!loading && rows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">No customers found</td>
-                  </tr>
-                )}
+                {!loading && rows.length === 0 && null}
                 {!loading && rows.map((r) => (
                   <tr key={String(r.id)} className="border-t border-gray-200/60 dark:border-white/10">
-                    <td className="px-4 py-3 font-medium">{r.id}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                          <Icon.User className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 dark:text-white truncate">{r.first_name}</div>
-                        </div>
+                    <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.id}</span></td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="max-w-xs mx-auto">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={r.first_name}>{r.first_name}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-gray-900 dark:text-white">{r.last_name}</span>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{r.last_name}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 max-w-xs">
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
                         <Icon.MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                        <span className="text-gray-600 dark:text-gray-300 truncate">{r.address || "—"}</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{r.address || "—"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
                         <Icon.Phone className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                        <span className="text-gray-600 dark:text-gray-300">{r.phone_number || "—"}</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{r.phone_number || "—"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
+                                        <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button 
+                          onClick={() => handleViewMore(r)} 
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all duration-200"
+                          title="View customer details"
+                        >
+                          <Icon.Eye className="h-4 w-4" />
+                        </button>
                         <button 
                           onClick={() => setEditing(r)} 
-                          className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all duration-200"
                           title="Edit customer"
                         >
                           <Icon.Edit className="h-3.5 w-3.5" />
                         </button>
                         <button 
                           onClick={() => setDeleting(r)} 
-                          className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
                           title="Delete customer"
                         >
                           <Icon.Trash className="h-3.5 w-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleViewMore(r)} 
-                          className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap"
-                          title="View more details"
-                        >
-                          View More
                         </button>
                       </div>
                     </td>
@@ -521,6 +583,13 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
+
+          {!loading && rows.length === 0 && (
+            <div className="text-center py-12">
+              <Icon.User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No customers found</p>
+            </div>
+          )}
 
           {/* Footer row: error + pagination */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/60 bg-white/60 p-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
@@ -538,7 +607,13 @@ export default function CustomersPage() {
       <Modal open={creating} onClose={()=>setCreating(false)}>
         <CustomerForm
           onCancel={()=>setCreating(false)}
-          onSaved={async()=>{ setCreating(false); await fetchList(); }}
+          onSaved={async(savedCustomer)=>{ 
+            setCreating(false); 
+            await fetchList(); 
+            if (savedCustomer && savedCustomer.id) {
+              router.push(`/customers/${savedCustomer.id}`);
+            }
+          }}
         />
       </Modal>
 
@@ -548,7 +623,13 @@ export default function CustomersPage() {
           <CustomerForm
             initial={editing}
             onCancel={()=>setEditing(null)}
-            onSaved={async()=>{ setEditing(null); await fetchList(); }}
+            onSaved={async(savedCustomer)=>{ 
+              setEditing(null); 
+              await fetchList(); 
+              if (savedCustomer && savedCustomer.id) {
+                router.push(`/customers/${savedCustomer.id}`);
+              }
+            }}
           />
         )}
       </Modal>
@@ -560,7 +641,14 @@ export default function CustomersPage() {
           <p className="text-sm text-gray-600 dark:text-gray-300">Are you sure you want to delete <span className="font-medium">{deleting?.first_name} {deleting?.last_name}</span>? This action cannot be undone.</p>
           <div className="flex items-center justify-end gap-2">
             <button onClick={()=>setDeleting(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10 dark:text-white">Cancel</button>
-            <button onClick={async()=>{ if (!deleting) return; await deleteCustomer(deleting); setDeleting(null); await fetchList(); }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">Delete</button>
+            <button onClick={async()=>{ 
+              if (!deleting) return; 
+              const success = await deleteCustomer(deleting); 
+              if (success) {
+                setDeleting(null); 
+                await fetchList(); 
+              }
+            }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">Delete</button>
           </div>
         </div>
       </Modal>
@@ -665,6 +753,46 @@ export default function CustomersPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <div className={`rounded-xl border p-4 shadow-lg ${
+            toast.type === "success" 
+              ? "border-green-200 bg-green-50 text-green-800 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-400" 
+              : "border-red-200 bg-red-50 text-red-800 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`h-5 w-5 rounded-full flex items-center justify-center ${
+                toast.type === "success" 
+                  ? "bg-green-500 text-white" 
+                  : "bg-red-500 text-white"
+              }`}>
+                {toast.type === "success" ? (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">{toast.message}</p>
+              </div>
+              <button 
+                onClick={() => setToast({ show: false, message: "", type: "success" })}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

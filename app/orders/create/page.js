@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Layout from "../../components/Layout";
+import { api, getAuthHeadersFromStorage } from "../config/api";
 
 /**
  * Order Creation page for the POS app
@@ -12,8 +13,7 @@ import Layout from "../../components/Layout";
  * - Create order
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
-const api = (path) => (API_BASE ? `${API_BASE}${path}` : path);
+// API configuration is now imported from config/api.js
 
 // ---------------- Icons ----------------
 const Icon = {
@@ -112,7 +112,7 @@ function cn(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-export default function CreateOrderPage() {
+function CreateOrderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedCustomerId = searchParams.get("customer_id");
@@ -133,14 +133,13 @@ export default function CreateOrderPage() {
   const [deliveryAmount, setDeliveryAmount] = useState(0);
   const [showCustomAlert, setShowCustomAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItemsOpen, setCartItemsOpen] = useState(true);
+  const [deliveryOpen, setDeliveryOpen] = useState(true);
 
-  // Fetch helpers
+  // Fetch helpers - now using centralized auth headers
   function authHeaders() {
-    const token = (typeof window !== "undefined" && (localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))) || "";
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    return getAuthHeadersFromStorage();
   }
 
   async function fetchCustomers() {
@@ -235,9 +234,23 @@ export default function CreateOrderPage() {
       return;
     }
 
+    // Check if product is out of stock
+    const availableStock = parseInt(product.quantity_in_stock || 0);
+    if (availableStock <= 0) {
+      setAlertMessage(`${product.name} is out of stock (${availableStock} units available). Cannot add to order.`);
+      setShowCustomAlert(true);
+      return;
+    }
+
     const existingItem = orderItems.find(item => item.product_id === product.id);
     
     if (existingItem) {
+      // Check if adding one more would exceed stock
+      if (existingItem.quantity >= availableStock) {
+        setAlertMessage(`${product.name}: Cannot add more units. Only ${availableStock} units available in stock.`);
+        setShowCustomAlert(true);
+        return;
+      }
       // Update quantity if product already exists
       updateItemQuantity(product.id, existingItem.quantity + 1);
     } else {
@@ -271,7 +284,8 @@ export default function CreateOrderPage() {
 
     const item = orderItems.find(item => item.product_id === productId);
     if (item && newQuantity > item.stock) {
-      setError(`Cannot add more than available stock (${item.stock})`);
+      setAlertMessage(`${item.name}: Cannot add more than available stock (${item.stock} units available).`);
+      setShowCustomAlert(true);
       return;
     }
 
@@ -285,18 +299,19 @@ export default function CreateOrderPage() {
 
   // Update item discount
   function updateItemDiscount(productId, newDiscount, type) {
-    const discount = Math.max(0, parseFloat(newDiscount) || 0);
+    // Allow empty string or valid numbers
+    const discountValue = newDiscount === "" ? 0 : Math.max(0, parseFloat(newDiscount) || 0);
     const item = orderItems.find(item => item.product_id === productId);
     
     if (item) {
-      let finalDiscount = discount;
+      let finalDiscount = discountValue;
       
       // Validate discount based on type
       if (type === "percent") {
-        finalDiscount = Math.min(discount, 100); // Max 100%
+        finalDiscount = Math.min(discountValue, 100); // Max 100%
       } else {
         const maxDiscount = item.price * item.quantity;
-        finalDiscount = Math.min(discount, maxDiscount);
+        finalDiscount = Math.min(discountValue, maxDiscount);
       }
       
       setOrderItems(orderItems.map(item =>
@@ -339,6 +354,7 @@ export default function CreateOrderPage() {
   const tax = 0; // Tax set to 0
   const deliveryCost = deliveryEnabled ? deliveryAmount : 0;
   const total = subtotal - totalDiscount + tax + deliveryCost;
+  const compactCartItems = orderItems.length >= 3;
 
   async function createOrder() {
     if (!selectedCustomer) {
@@ -349,6 +365,25 @@ export default function CreateOrderPage() {
 
     if (orderItems.length === 0) {
       setAlertMessage("Please add at least one product to the order!");
+      setShowCustomAlert(true);
+      return;
+    }
+
+    // Validate stock quantities
+    const stockIssues = [];
+    for (const item of orderItems) {
+      const quantity = parseInt(item.quantity);
+      const availableStock = parseInt(item.quantity_in_stock || 0);
+      
+      if (quantity <= 0) {
+        stockIssues.push(`${item.name}: Quantity must be greater than 0`);
+      } else if (quantity > availableStock) {
+        stockIssues.push(`${item.name}: Requested ${quantity} units, but only ${availableStock} available in stock`);
+      }
+    }
+
+    if (stockIssues.length > 0) {
+      setAlertMessage(`Stock validation failed:\n\n${stockIssues.join('\n')}`);
       setShowCustomAlert(true);
       return;
     }
@@ -410,6 +445,435 @@ export default function CreateOrderPage() {
             <p className="text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
         </div>
+      </Layout>
+    );
+  }
+
+  // Completely new UI is now the default. Use ?ui=v1 to see the old design
+  const useOldUI = searchParams.get("ui") === "v1";
+  if (!useOldUI) {
+    return (
+      <Layout title="Create Order">
+        <div className="space-y-6">
+          {/* Top bar */}
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.back()}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-300/40 dark:border-white/10 dark:hover:bg-white/10 dark:focus:ring-white/10"
+                >
+                  <span className="inline-flex items-center gap-2"><Icon.ArrowLeft className="h-4 w-4" /> Back</span>
+                </button>
+                <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-white/10" />
+                <span className="text-sm text-gray-500 dark:text-gray-400">Sales</span>
+                <span className="text-sm">/</span>
+                <h1 className="truncate text-xl font-semibold">New Order</h1>
+                {orderItems.length > 0 && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-indigo-600/10 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                    {orderItems.length} items
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Create a sales order by selecting a customer and adding products</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-white/10 dark:hover:bg-white/10 dark:focus:ring-white/10"
+                title="Open cart"
+              >
+                <span className="inline-flex items-center gap-2"><Icon.ShoppingCart className="h-4 w-4" /> Cart</span>
+              </button>
+              <button
+                onClick={clearAllItems}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-300/40 dark:border-white/10 dark:hover:bg-white/10 dark:focus:ring-white/10"
+              >
+                Clear Cart
+              </button>
+              <button
+                onClick={createOrder}
+                disabled={saving}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 disabled:opacity-60"
+              >
+                {saving ? "Creating..." : "Create Order"}
+              </button>
+            </div>
+          </div>
+
+          {/* Two-column layout: products left, sidebar right */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            {/* Products */}
+            <div className="xl:col-span-12 space-y-4">
+              {/* Customer moved above products */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+                <div className="mb-2 text-sm font-semibold">Customer</div>
+                <div className="relative">
+                  <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    placeholder="Search name or phone"
+                    className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  />
+                </div>
+                {customerSearchTerm && (
+                  <div className="mt-3 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-white/10">
+                    {filteredCustomers.slice(0, 12).map((customer) => (
+                      <div
+                        key={customer.id}
+                        className="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/10 border-b border-gray-100 last:border-b-0 dark:border-white/10 transition-colors duration-200"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-gray-900 dark:text-white">{customer.first_name} {customer.last_name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{customer.phone_number || "No phone"}</div>
+                          </div>
+                          <button
+                            onClick={() => { setSelectedCustomer(customer); setCustomerSearchTerm(""); }}
+                            className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 transform hover:scale-105"
+                          >
+                            Select
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredCustomers.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No customers found</div>
+                    )}
+                  </div>
+                )}
+
+                {selectedCustomer && (
+                  <div className="mt-3 rounded-lg border border-gray-200 p-3 text-xs dark:border-white/10">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center flex-wrap gap-3 md:gap-4">
+                          <span className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-300">
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            {selectedCustomer.first_name} {selectedCustomer.last_name}
+                          </span>
+                          <span className="shrink-0 inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-300">
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                            Active
+                          </span>
+                          <span className="shrink-0 inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-300">
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+                            {selectedCustomer.phone_number || "No phone"}
+                          </span>
+                          {selectedCustomer.address && (
+                            <span className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-300 max-w-[28rem] truncate">
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                              {selectedCustomer.address}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={() => setSelectedCustomer(null)} className="rounded-md p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10" title="Remove"><Icon.Trash className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search products by name, SKU, or barcode"
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    >
+                      <option value="">All categories</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-white dark:bg-gray-900">
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                {(searchTerm || selectedCategory ? filteredProducts : products).length === 0 ? (
+                  <div className="py-16 text-center text-sm text-gray-500">No products found.</div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+                    {(searchTerm || selectedCategory ? filteredProducts : products).slice(0, 48).map((product) => {
+                      const orderItem = orderItems.find(i => i.product_id === product.id);
+                      const inStock = product.quantity_in_stock || 0;
+                      return (
+                        <div key={product.id} className="group rounded-2xl border border-gray-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="truncate text-base font-semibold text-gray-900 dark:text-white">{product.name}</div>
+                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Category: {categories.find(c => c.id == product.category_id)?.name || "No Category"}
+                              </div>
+                            </div>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${inStock > 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-500"}`}>{inStock}</span>
+                          </div>
+                          <div className="mt-3 space-y-1.5 text-xs text-gray-500">
+                            <div>Category: {categories.find(c => c.id == product.category_id)?.name || "No Category"}</div>
+                            <div>Stock: {inStock}</div>
+                          </div>
+                          <div className="mt-3 border-t border-gray-100 dark:border-white/10"></div>
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="text-xl font-bold text-gray-900 dark:text-white">${(parseFloat(product.price) || 0).toFixed(2)}</div>
+                            {orderItem ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateItemQuantity(product.id, orderItem.quantity - 1)}
+                                  className="rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:hover:bg-indigo-500/10"
+                                >
+                                  <Icon.Minus className="h-4 w-4" />
+                                </button>
+                                <span className="min-w-[2rem] text-center text-sm font-semibold">{orderItem.quantity}</span>
+                                <button
+                                  onClick={() => updateItemQuantity(product.id, orderItem.quantity + 1)}
+                                  disabled={orderItem.quantity >= inStock}
+                                  className="rounded-md p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 dark:hover:bg-indigo-500/10"
+                                >
+                                  <Icon.Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addProductToOrder(product)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:bg-white/10 dark:hover:bg-white/20"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sidebar removed as requested */}
+            {false && (
+              <div className="xl:col-span-5 xl:sticky xl:top-24 self-start flex flex-col gap-4 max-h-[calc(100vh-8rem)]"></div>
+            )}
+          </div>
+        </div>
+        {/* Floating Cart Toggle Button */}
+        {/* Floating cart toggle removed in favor of header button */}
+
+        {/* Cart Slide-over */}
+        {isCartOpen && (
+          <div className="fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setIsCartOpen(false)} />
+            <div className="absolute right-0 top-0 h-full w-full sm:max-w-xl lg:max-w-2xl bg-white/90 backdrop-blur dark:bg-[#0F1115] shadow-2xl flex flex-col rounded-l-2xl border-l border-gray-200 dark:border-white/10">
+              <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-4 rounded-tl-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-white">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                      <Icon.ShoppingCart className="h-4 w-4" /> Cart
+                    </span>
+                    {orderItems.length > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">{orderItems.length}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {orderItems.length > 0 && (
+                      <button onClick={clearAllItems} className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25">Clear all</button>
+                    )}
+                    <button onClick={() => setIsCartOpen(false)} className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25">Close</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Items toggle */}
+                <button
+                  onClick={() => setCartItemsOpen(v => !v)}
+                  className="mb-4 w-full rounded-xl bg-gray-50 px-4 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-gray-100 border border-gray-200 shadow-sm dark:bg-white/5 dark:text-gray-300 dark:border-white/10"
+                >
+                  <span className="inline-flex w-full items-center justify-between">
+                    <span className="inline-flex items-center gap-2"><Icon.Package className="h-4 w-4" /> Items {orderItems.length > 0 ? `(${orderItems.length})` : ""}</span>
+                    <svg className={`h-4 w-4 transition-transform ${cartItemsOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                  </span>
+                </button>
+
+                {cartItemsOpen && (orderItems.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-gray-500">No items yet</div>
+                ) : (
+                  <div className="space-y-3">
+                      {orderItems.map((item) => {
+                      const product = products.find(p => p.id === item.product_id);
+                      return (
+                        <div key={item.product_id} className={`rounded-2xl border border-gray-200/70 bg-white p-4 shadow-sm transition-all dark:border-white/10 dark:bg-white/5 ${compactCartItems ? 'hover:shadow-md' : 'hover:shadow-lg'}`}>
+                          {/* Top: name/category + total/delete */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-gray-900 dark:text-white">{item.name}</div>
+                              <span className="mt-1 inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:border-white/10 dark:text-gray-300">
+                                <span className="opacity-70">Category</span>
+                                <span>{categories.find(c => c.id == product?.category_id)?.name || 'No Category'}</span>
+                              </span>
+                            </div>
+                            <div className="shrink-0 flex items-center gap-2">
+                              <div className="rounded-md bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">${calculateItemTotal(item).toFixed(2)}</div>
+                              <button onClick={() => removeItemFromOrder(item.product_id)} className="rounded-md p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10" title="Remove"><Icon.Trash className="h-4 w-4" /></button>
+                            </div>
+                          </div>
+                          {/* Bottom: controls */}
+                          <div className={`mt-3 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-white/10 ${compactCartItems ? 'gap-2 flex-wrap' : 'gap-4 flex-wrap'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 dark:bg-white/10 dark:border-white/10">
+                                <button onClick={() => updateItemQuantity(item.product_id, item.quantity - 1)} className="w-8 h-8 grid place-items-center text-gray-600 hover:text-blue-600 dark:text-gray-300"><Icon.Minus className="h-3 w-3" /></button>
+                                <div className="w-9 text-center text-sm font-semibold text-gray-900 dark:text-white">{item.quantity}</div>
+                                <button onClick={() => updateItemQuantity(item.product_id, item.quantity + 1)} disabled={item.quantity >= item.stock} className="w-8 h-8 grid place-items-center text-gray-600 hover:text-blue-600 disabled:opacity-50 dark:text-gray-300"><Icon.Plus className="h-3 w-3" /></button>
+                              </div>
+                              <div className="text-[11px] text-gray-500">${item.price.toFixed(2)} each</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="hidden sm:block text-[11px] text-gray-500">Discount</label>
+                              <input type="number" min="0" step="0.01" value={item.discount_amount === 0 ? '' : item.discount_amount} onChange={(e) => updateItemDiscount(item.product_id, e.target.value, item.discount_type)} className="w-24 sm:w-28 rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0.00" />
+                              <select value={item.discount_type} onChange={(e) => updateItemDiscount(item.product_id, item.discount_amount, e.target.value)} className="rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white transition">
+                                <option value="usd">USD</option>
+                                <option value="percent">%</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                      })}
+                  </div>
+                ))}
+
+                {/* Delivery section */}
+                <div className="mt-4">
+                  <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-blue-50 flex items-center justify-center dark:bg-blue-500/10">
+                          <Icon.Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800 dark:text-gray-300">Delivery</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Optional shipping fee added to total</div>
+                        </div>
+                      </div>
+                      {/* Switch + collapse */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryOpen(!deliveryOpen)}
+                          className="rounded-lg px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10"
+                          title={deliveryOpen ? 'Hide section' : 'Show section'}
+                        >
+                          <svg className={`h-4 w-4 transition-transform ${deliveryOpen ? '' : '-rotate-90'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryEnabled(!deliveryEnabled)}
+                          role="switch"
+                          aria-checked={deliveryEnabled}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${deliveryEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-white/10'}`}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${deliveryEnabled ? 'translate-x-5' : 'translate-x-1'}`}></span>
+                        </button>
+                      </div>
+                    </div>
+                    {deliveryOpen && deliveryEnabled && (
+                      <div className="mt-4 grid grid-cols-12 gap-3">
+                        <div className="col-span-7 flex items-center gap-2">
+                          <label className="text-xs text-gray-500 dark:text-gray-400">Amount</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={deliveryAmount === 0 ? '' : deliveryAmount}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === '') { setDeliveryAmount(0); return; }
+                              setDeliveryAmount(Math.max(0, parseFloat(raw) || 0));
+                            }}
+                            className="w-28 rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="col-span-5 flex items-center justify-end">
+                          <div className="rounded-2xl border border-gray-200/60 bg-white/70 px-4 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                            USD
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 border-t border-gray-200/60 bg-white/85 backdrop-blur px-6 py-4 space-y-2 rounded-bl-2xl dark:border-white/10 dark:bg-[#0F1115]/90">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
+                  <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                </div>
+                {totalDiscount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Discounts</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">-${totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {deliveryEnabled && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Delivery</span>
+                    <span className="font-semibold">${deliveryAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 dark:border-white/10">
+                  <span className="text-sm font-semibold">Total</span>
+                  <span className="text-lg font-bold">${total.toFixed(2)}</span>
+                </div>
+                <button
+                  onClick={createOrder}
+                  disabled={saving}
+                  className="w-full rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:from-slate-700 hover:to-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-500/30 disabled:opacity-60 mt-2"
+                >
+                  {saving ? 'Creating...' : 'Create Order'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alert modal */}
+        {showCustomAlert && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full p-6">
+              <div className="text-center">
+                <div className="h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                  <svg className="h-8 w-8 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Attention Required</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6 text-base leading-relaxed">{alertMessage}</p>
+                <button
+                  onClick={() => setShowCustomAlert(false)}
+                  className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700"
+                >
+                  Got it!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Layout>
     );
   }
@@ -653,7 +1117,7 @@ export default function CreateOrderPage() {
                 <button
                   onClick={createOrder}
                   disabled={saving}
-                  className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 text-lg font-bold text-white shadow-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] mt-6"
+                  className="w-full rounded-2xl bg-gradient-to-r from-slate-600 to-slate-700 px-6 py-4 text-lg font-bold text-white shadow-xl hover:from-slate-700 hover:to-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] mt-6"
                 >
                   {saving ? (
                     <div className="flex items-center justify-center gap-3">
@@ -710,7 +1174,7 @@ export default function CreateOrderPage() {
                 <div className="overflow-hidden rounded-2xl border border-gray-200/60 dark:border-white/10">
                   <div className="overflow-y-auto max-h-96">
                     <table className="w-full text-sm">
-                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-white/5 dark:to-white/10 text-xs text-gray-600 dark:text-gray-300 sticky top-0 z-10">
+                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-white/5 dark:to-white/10 text-sm text-gray-600 dark:text-gray-300 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-3 text-left font-bold">Product</th>
                           <th className="px-4 py-3 text-left font-bold">Category</th>
@@ -753,7 +1217,7 @@ export default function CreateOrderPage() {
                                   <div className="flex items-center gap-2">
                                     <button
                                       onClick={() => updateItemQuantity(product.id, orderItem.quantity - 1)}
-                                      className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all duration-200"
+                                      className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:hover:bg-indigo-500/10"
                                     >
                                       <Icon.Minus className="h-3 w-3" />
                                     </button>
@@ -761,7 +1225,7 @@ export default function CreateOrderPage() {
                                     <button
                                       onClick={() => updateItemQuantity(product.id, orderItem.quantity + 1)}
                                       disabled={orderItem.quantity >= product.quantity_in_stock}
-                                      className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-50 transition-all duration-200"
+                                      className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 dark:hover:bg-indigo-500/10"
                                     >
                                       <Icon.Plus className="h-3 w-3" />
                                     </button>
@@ -769,7 +1233,7 @@ export default function CreateOrderPage() {
                                 ) : (
                                   <button
                                     onClick={() => addProductToOrder(product)}
-                                    className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105"
+                                    className="rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 px-3 py-1.5 text-xs font-bold text-white hover:from-blue-600 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105"
                                   >
                                     Add
                                   </button>
@@ -782,14 +1246,14 @@ export default function CreateOrderPage() {
                                       type="number"
                                       min="0"
                                       step="0.01"
-                                      value={orderItem.discount_amount}
+                                      value={orderItem.discount_amount === 0 ? "" : orderItem.discount_amount}
                                       onChange={(e) => updateItemDiscount(product.id, e.target.value, orderItem.discount_type)}
                                       className="w-16 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-center font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     <select
                                       value={orderItem.discount_type}
                                       onChange={(e) => updateItemDiscount(product.id, orderItem.discount_amount, e.target.value)}
-                                      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white text-gray-900 dark:text-white"
+                                      className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 text-gray-900 dark:text-white"
                                     >
                                       <option value="usd" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">USD</option>
                                       <option value="percent" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">%</option>
@@ -862,8 +1326,8 @@ export default function CreateOrderPage() {
             </div>
           </div>
 
-          {/* Selected Products Section */}
-          {orderItems.length > 0 && (
+          {/* Selected Products Section (disabled - using slide-over cart) */}
+          {false && orderItems.length > 0 && (
             <div className="rounded-3xl border border-gray-200/60 bg-white/90 shadow-xl dark:border-white/10 dark:bg-white/5 backdrop-blur-sm overflow-hidden">
                              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
                  <div className="flex items-center justify-between">
@@ -890,7 +1354,7 @@ export default function CreateOrderPage() {
                 <div className="overflow-hidden rounded-2xl border border-gray-200/60 dark:border-white/10">
                   <div className="overflow-y-auto max-h-64">
                     <table className="w-full text-sm">
-                      <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-500/10 dark:to-purple-500/10 text-xs text-gray-600 dark:text-gray-300 sticky top-0 z-10">
+                      <thead className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-500/10 dark:to-purple-500/10 text-sm text-gray-600 dark:text-gray-300 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-3 text-left font-bold">Product</th>
                           <th className="px-4 py-3 text-left font-bold">Category</th>
@@ -911,7 +1375,7 @@ export default function CreateOrderPage() {
                                 <div>
                                   <div className="font-bold text-gray-900 dark:text-white text-sm">{item.name}</div>
                                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    SKU: {product?.sku || "N/A"}
+                                    Category: {categoryName}
                                   </div>
                                 </div>
                               </td>
@@ -925,7 +1389,7 @@ export default function CreateOrderPage() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => updateItemQuantity(item.product_id, item.quantity - 1)}
-                                    className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all duration-200"
+                                    className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:hover:bg-indigo-500/10"
                                   >
                                     <Icon.Minus className="h-3 w-3" />
                                   </button>
@@ -933,7 +1397,7 @@ export default function CreateOrderPage() {
                                   <button
                                     onClick={() => updateItemQuantity(item.product_id, item.quantity + 1)}
                                     disabled={item.quantity >= item.stock}
-                                    className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 disabled:opacity-50 transition-all duration-200"
+                                    className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 dark:hover:bg-indigo-500/10"
                                   >
                                     <Icon.Plus className="h-3 w-3" />
                                   </button>
@@ -945,14 +1409,14 @@ export default function CreateOrderPage() {
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    value={item.discount_amount}
+                                    value={item.discount_amount === 0 ? "" : item.discount_amount}
                                     onChange={(e) => updateItemDiscount(item.product_id, e.target.value, item.discount_type)}
                                     className="w-16 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-center font-medium outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   />
                                   <select
                                     value={item.discount_type}
                                     onChange={(e) => updateItemDiscount(item.product_id, item.discount_amount, e.target.value)}
-                                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white text-gray-900 dark:text-white"
+                                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 text-gray-900 dark:text-white"
                                   >
                                     <option value="usd" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">USD</option>
                                     <option value="percent" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">%</option>
@@ -1020,5 +1484,22 @@ export default function CreateOrderPage() {
         </div>
       )}
     </Layout>
+  );
+}
+
+export default function CreateOrderPage() {
+  return (
+    <Suspense fallback={
+      <Layout title="Create Order">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    }>
+      <CreateOrderContent />
+    </Suspense>
   );
 }

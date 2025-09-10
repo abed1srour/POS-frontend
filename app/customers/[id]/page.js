@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Layout from "../../components/Layout";
+import PaymentDialog from "../../components/PaymentDialog";
 
 /**
  * Customer Details page showing customer info, orders, and actions
@@ -84,11 +85,19 @@ const Icon = {
       <polyline points="12,6 12,12 16,14" />
     </svg>
   ),
+  Eye: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
 };
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
 }
+
+
 
 // Minimal modal component
 function Modal({ open, onClose, children }) {
@@ -115,6 +124,13 @@ export default function CustomerDetailsPage() {
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [paymentDialog, setPaymentDialog] = useState({ open: false, order: null });
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  // Reset orders when customerId changes
+  useEffect(() => {
+    setOrders([]);
+  }, [customerId]);
 
   // Fetch helpers
   function authHeaders() {
@@ -142,6 +158,7 @@ export default function CustomerDetailsPage() {
 
   async function fetchOrders() {
     try {
+      console.log(`Fetching orders for customer ID: ${customerId}`);
       const res = await fetch(api(`/api/orders?customer_id=${customerId}&limit=50`), {
         headers: authHeaders(),
         cache: "no-store",
@@ -149,10 +166,13 @@ export default function CustomerDetailsPage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed to load orders (${res.status})`);
       const data = await res.json();
-      setOrders(data.data || data || []);
+      const ordersData = data.data || data || [];
+      console.log(`Found ${ordersData.length} orders for customer ${customerId}:`, ordersData);
+      setOrders(ordersData);
     } catch (e) {
       console.error("Failed to load orders:", e);
-      // Don't set error for orders, just log it
+      // Don't set error for orders, just log it and set empty array
+      setOrders([]);
     }
   }
 
@@ -183,6 +203,11 @@ export default function CustomerDetailsPage() {
     } catch (e) {
       setError(e?.message || "Failed to update customer");
     }
+  }
+
+  function showToast(message, type = "success") {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 5000);
   }
 
   // Form component for editing customer
@@ -322,53 +347,69 @@ export default function CustomerDetailsPage() {
         {/* Customer Profile Card */}
         <div className="rounded-3xl border border-gray-200/60 bg-white/80 shadow-xl dark:border-white/10 dark:bg-white/5">
           <div className="p-6">
-            <div className="flex items-start justify-between">
+            {/* Single row: Profile info on left, metrics in center, edit button on right */}
+            <div className="flex items-center justify-between">
+              {/* Left: Profile information */}
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center">
                   <Icon.User className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">{customer.first_name} {customer.last_name}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{customer.first_name} {customer.last_name}</h2>
                   <p className="text-gray-600 dark:text-gray-400">Customer #{customer.id}</p>
                 </div>
               </div>
+
+              {/* Center: All metrics */}
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3">
+                  <Icon.ShoppingCart className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Orders</p>
+                    <p className="font-bold text-gray-900 dark:text-white">{orders.length}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Icon.DollarSign className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      ${orders.reduce((total, order) => total + parseFloat(order.total_amount || 0), 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Icon.DollarSign className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Paid Amount</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      ${orders.reduce((total, order) => total + parseFloat(order.total_paid || 0), 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Icon.DollarSign className="h-5 w-5 text-red-500" />
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Remaining</p>
+                    <p className="font-bold text-red-600 dark:text-red-400">
+                      ${orders.reduce((total, order) => {
+                        const orderTotal = parseFloat(order.total_amount || 0);
+                        const orderPaid = parseFloat(order.total_paid || 0);
+                        return total + Math.max(0, orderTotal - orderPaid);
+                      }, 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Edit button */}
               <button 
                 onClick={() => setEditing(true)}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                className="rounded-lg p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all duration-200"
+                title="Edit customer"
               >
-                <Icon.Edit className="h-4 w-4" />
+                <Icon.Edit className="h-5 w-5" />
               </button>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="flex items-center gap-3">
-                <Icon.Phone className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Phone</p>
-                  <p className="font-medium">{customer.phone_number || "Not provided"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Icon.MapPin className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Address</p>
-                  <p className="font-medium">{customer.address || "Not provided"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Icon.Calendar className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Join Date</p>
-                  <p className="font-medium">{customer.join_date ? new Date(customer.join_date).toLocaleDateString() : "Not specified"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Icon.ShoppingCart className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Orders</p>
-                  <p className="font-medium">{orders.length}</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -426,7 +467,7 @@ export default function CustomerDetailsPage() {
               </div>
             ) : (
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50/60 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-white/5 dark:to-white/10 text-sm text-gray-600 dark:text-gray-300">
                   <tr>
                     <th className="px-6 py-4 font-medium">Order ID</th>
                     <th className="px-6 py-4 font-medium">Date</th>
@@ -442,7 +483,21 @@ export default function CustomerDetailsPage() {
                     const totalAmount = parseFloat(order.total_amount || 0);
                     const totalPaid = parseFloat(order.total_paid || 0);
                     const remaining = Math.max(0, totalAmount - totalPaid);
-                    const isPaid = totalPaid >= totalAmount;
+                    
+                    // Check if the order has a status field that indicates it's paid
+                    const hasPaidStatus = order.status === 'paid' || order.status === 'completed';
+                    // More robust paid status check - prioritize status field, then payment amounts
+                    const isPaid = hasPaidStatus || remaining <= 0.01 || totalPaid >= totalAmount;
+                    
+                    // Debug logging
+                    console.log(`Order #${order.id}:`, {
+                      totalAmount,
+                      totalPaid,
+                      remaining,
+                      hasPaidStatus,
+                      isPaid,
+                      status: order.status
+                    });
                     
                     return (
                       <tr key={order.id} className="border-t border-gray-200/60 dark:border-white/10">
@@ -451,7 +506,7 @@ export default function CustomerDetailsPage() {
                           {order.order_date ? new Date(order.order_date).toLocaleDateString() : "—"}
                         </td>
                         <td className="px-6 py-4 font-semibold">${totalAmount.toFixed(2)}</td>
-                        <td className="px-6 py-4 font-semibold text-green-600 dark:text-green-400">
+                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                           ${totalPaid.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 font-semibold text-red-600 dark:text-red-400">
@@ -460,26 +515,28 @@ export default function CustomerDetailsPage() {
                         <td className="px-6 py-4">
                           <span className={cn(
                             "rounded-xl px-3 py-1 text-xs font-medium",
-                            isPaid && "bg-emerald-500/10 text-emerald-500",
-                            !isPaid && "bg-amber-500/10 text-amber-500",
+                            (isPaid || order.status === 'paid') && "bg-emerald-500/10 text-emerald-500",
+                            (!isPaid && order.status !== 'paid') && "bg-red-500/10 text-red-500",
                             order.status === "cancelled" && "bg-rose-500/10 text-rose-500"
                           )}>
-                            {isPaid ? "Paid" : "Unpaid"}
+                            {(isPaid || order.status === 'paid') ? "Paid" : "Unpaid"}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             <button 
                               onClick={() => router.push(`/orders/${order.id}`)}
-                              className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              className="rounded-lg p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all duration-200"
+                              title="View order"
                             >
-                              View
+                              <Icon.Eye className="h-4 w-4" />
                             </button>
                             <button 
-                              onClick={() => router.push(`/payments?order_id=${order.id}`)}
-                              className="text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                              onClick={() => setPaymentDialog({ open: true, order })}
+                              className="rounded-lg p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-all duration-200"
+                              title="Add payment"
                             >
-                              Payments
+                              <Icon.DollarSign className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -528,6 +585,62 @@ export default function CustomerDetailsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Payment Dialog */}
+      {paymentDialog.open && (
+        <PaymentDialog 
+          order={paymentDialog.order}
+          customer={customer}
+          onClose={() => setPaymentDialog({ open: false, order: null })}
+          onSuccess={() => {
+            setPaymentDialog({ open: false, order: null });
+            fetchOrders(); // Refresh orders to show updated payment info
+            showToast("Payment recorded successfully!", "success");
+          }}
+          authHeaders={authHeaders}
+          api={api}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <div className={`rounded-xl border p-4 shadow-lg ${
+            toast.type === "success" 
+              ? "border-green-200 bg-green-50 text-green-800 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-400" 
+              : "border-red-200 bg-red-50 text-red-800 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`h-5 w-5 rounded-full flex items-center justify-center ${
+                toast.type === "success" 
+                  ? "bg-green-500 text-white" 
+                  : "bg-red-500 text-white"
+              }`}>
+                {toast.type === "success" ? (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">{toast.message}</p>
+              </div>
+              <button 
+                onClick={() => setToast({ show: false, message: "", type: "success" })}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

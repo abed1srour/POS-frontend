@@ -111,10 +111,12 @@ export default function EditOrderPage() {
     setSaving(true);
     
     try {
+      const methodLower = (formData.payment_method || '').toLowerCase();
+      const payload = { ...formData, payment_method: (methodLower === 'whish' || methodLower === 'wish') ? 'cash' : methodLower };
       const res = await fetch(api(`/api/orders/${orderId}/status`), {
         method: "PUT",
         headers: authHeaders(),
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -235,7 +237,7 @@ export default function EditOrderPage() {
                         className="w-full rounded-xl border border-gray-200/60 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
                       >
                         <option value="cash">Cash</option>
-                        <option value="wish">Wish</option>
+                        <option value="Whish">Whish</option>
                       </select>
                     </div>
 

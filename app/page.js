@@ -1,15 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { initI18n } from "./lib/i18n";
 
 export default function Home() {
   const router = useRouter();
-
+  const pathname = usePathname();
+  
   useEffect(() => {
-    // Redirect to dashboard
-    router.replace("/dashboard");
-  }, [router]);
+    // Initialize i18n
+    initI18n();
+    
+    // Get the locale from the pathname (e.g., /en -> en, /ar -> ar)
+    const locale = pathname.split('/')[1];
+    // Redirect to dashboard with locale prefix
+    router.replace(`/${locale}/dashboard`);
+  }, [router, pathname]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0B0D10]">

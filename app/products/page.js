@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 /**
  * Professional Products page for the POS app (matches dashboard theme).
@@ -74,6 +75,11 @@ const Icon = {
       <path d="M3 21v-5h5" />
     </svg>
   ),
+  Package: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} {...p}>
+      <path d="M12.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  ),
 };
 
 function cn(...classes) {
@@ -120,15 +126,18 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
 
   // Modal state
   const [editing, setEditing] = useState(null);
-  const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [recycleBinOpen, setRecycleBinOpen] = useState(false);
   const [deletedProducts, setDeletedProducts] = useState([]);
   const [deletedProductsLoading, setDeletedProductsLoading] = useState(false);
   const [clearBinConfirm, setClearBinConfirm] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
+  const [clearingBin, setClearingBin] = useState(false);
+  const [clearResult, setClearResult] = useState(null);
 
   const offset = useMemo(() => (page - 1) * limit, [page, limit]);
   const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
@@ -136,6 +145,7 @@ export default function ProductsPage() {
   // Fetch helpers
   function authHeaders() {
     const token = (typeof window !== "undefined" && (localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))) || "";
+    console.log("🔑 Auth token:", token ? "Present" : "Missing");
     return {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -161,6 +171,8 @@ export default function ProductsPage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
+      console.log("📦 Products API response:", data);
+      console.log("🔍 Sample product data:", data.data?.[0] || data?.[0]);
       setRows(data.data || data || []);
       setTotal(data.pagination?.total ?? (data.data ? data.data.length : 0));
     } catch (e) {
@@ -181,6 +193,33 @@ export default function ProductsPage() {
     } catch {}
   }
 
+  async function fetchSuppliers() {
+    try {
+      console.log("🔍 Fetching suppliers...");
+      const res = await fetch(api("/api/suppliers"), { headers: authHeaders(), cache: "no-store" });
+      console.log("📡 Supplier API response status:", res.status);
+      if (res.status === 401) {
+        console.error("❌ Authentication failed - redirecting to login");
+        return router.replace("/login");
+      }
+      if (res.ok) {
+        const list = await res.json();
+        console.log("📦 Raw supplier data:", list);
+        const data = Array.isArray(list?.data) ? list.data : list;
+        console.log("📋 Processed supplier data:", data);
+        const suppliersData = data?.map((s) => ({ id: s.id, name: s.company_name })) || [];
+        console.log("🎯 Final suppliers array:", suppliersData);
+        setSuppliers(suppliersData);
+      } else {
+        console.error("❌ Supplier API failed:", res.status, res.statusText);
+        const errorText = await res.text();
+        console.error("❌ Error response:", errorText);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching suppliers:", error);
+    }
+  }
+
   async function fetchDeletedProducts() {
     setDeletedProductsLoading(true);
     try {
@@ -199,7 +238,7 @@ export default function ProductsPage() {
     }
   }
 
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { fetchCategories(); fetchSuppliers(); }, []);
   useEffect(() => { fetchList(); }, [q, sort, order, page, limit, category]);
 
   function toggleSort(col) {
@@ -208,8 +247,8 @@ export default function ProductsPage() {
   }
 
   function exportCSV() {
-    const header = ["ID","Name","SKU","Barcode","Price","Cost","Stock","Category","Status"];
-    const lines = rows.map(r => [r.id, r.name, r.sku, r.barcode, r.price, r.cost, r.stock, r.category_id, r.status].map(v => (v ?? "")).join(","));
+    const header = ["ID","Name","SKU","Barcode","Price","Cost","Stock","Category","Supplier","Status"];
+    const lines = rows.map(r => [r.id, r.name, r.sku, r.barcode, r.price, r.cost, r.stock, r.category_id, r.supplier_name, r.status].map(v => (v ?? "")).join(","));
     const csv = [header.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -227,7 +266,10 @@ export default function ProductsPage() {
       body: JSON.stringify(input),
     });
     if (res.status === 401) return router.replace("/login");
-    if (!res.ok) throw new Error(`Save failed (${res.status})`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(`Save failed (${res.status}): ${errorData.message || 'Unknown error'}`);
+    }
   }
 
   async function deleteProduct(p) {
@@ -260,6 +302,7 @@ export default function ProductsPage() {
       cost: initial?.cost ?? undefined,
       stock: initial?.stock ?? 0,
       category_id: initial?.category_id ?? (category || ""),
+      supplier_id: initial?.supplier_id || "",
       status: initial?.status || "active",
       description: initial?.description || "",
     });
@@ -310,6 +353,13 @@ export default function ProductsPage() {
             <select value={String(form.category_id ?? "")} onChange={(e)=>setForm({...form, category_id: e.target.value || null})} className="w-full rounded-xl border border-gray-200 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white">
               <option value="" className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">—</option>
               {categories.map(c => <option key={c.id} value={String(c.id)} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500 dark:text-gray-400">Supplier</label>
+            <select value={String(form.supplier_id || "")} onChange={(e)=>setForm({...form, supplier_id: e.target.value || null})} className="w-full rounded-xl border border-gray-200 bg-white/70 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white">
+              <option value="" className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">—</option>
+              {suppliers.map(s => <option key={s.id} value={String(s.id)} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">{s.name}</option>)}
             </select>
           </div>
           <div>
@@ -376,14 +426,7 @@ export default function ProductsPage() {
               <option value={50} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">50 / page</option>
             </select>
 
-            {/* Add Product Button */}
-            <button
-              onClick={() => setCreating(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-500/20"
-            >
-              <Icon.Plus className="h-4 w-4" />
-              Add product
-            </button>
+            
 
             {/* Export CSV Button */}
             <button
@@ -425,23 +468,24 @@ export default function ProductsPage() {
       <div className="overflow-hidden rounded-3xl border border-gray-200/60 bg-white/80 shadow-xl dark:border-white/10 dark:bg-white/5">
         <div className="overflow-x-auto table-container">
           <table className="w-full min-w-full text-left text-sm table-full-width table-optimized">
-            <thead className="bg-gray-50/60 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-white/5 dark:to-white/10 text-sm text-gray-600 dark:text-gray-300">
               <tr>
                 {[
-                  { key: "id", label: "ID", w: "w-20" },
-                  { key: "name", label: "Name", w: "w-64" },
-                  { key: "sku", label: "SKU", w: "w-32" },
-                  { key: "barcode", label: "Barcode", w: "w-40" },
-                  { key: "price", label: "Price", w: "w-28" },
-                  { key: "cost_price", label: "Cost Price", w: "w-32" },
-                  { key: "stock", label: "Stock", w: "w-24" },
-                  { key: "category_id", label: "Category", w: "w-40" },
-                  { key: "status", label: "Status", w: "w-32" },
-                  { key: "_", label: "Actions", w: "w-32" },
+                  { key: "id", label: "ID", w: "w-20", align: "text-center" },
+                  { key: "name", label: "Name", w: "w-64", align: "text-center" },
+                  { key: "sku", label: "SKU", w: "w-32", align: "text-center" },
+                  { key: "barcode", label: "Barcode", w: "w-40", align: "text-center" },
+                  { key: "price", label: "Price", w: "w-28", align: "text-center" },
+                  { key: "cost_price", label: "Cost Price", w: "w-32", align: "text-center" },
+                  { key: "stock", label: "Stock", w: "w-24", align: "text-center" },
+                  { key: "category_id", label: "Category", w: "w-40", align: "text-center" },
+                  { key: "supplier_name", label: "Supplier", w: "w-40", align: "text-center" },
+                  { key: "status", label: "Status", w: "w-32", align: "text-center" },
+                  { key: "_", label: "Actions", w: "w-32", align: "text-center" },
                 ].map((c) => (
-                  <th key={c.key} className={cn("px-4 py-3 font-medium whitespace-nowrap", c.w)}>
+                  <th key={c.key} className={cn("px-4 py-3 font-bold whitespace-nowrap", c.w, c.align)}>
                     {c.key !== "_" ? (
-                      <button onClick={() => toggleSort(c.key)} className="flex items-center gap-1 hover:underline">
+                      <button onClick={() => toggleSort(c.key)} className="flex items-center justify-center gap-1 hover:underline w-full">
                         {c.label}
                         {sort === c.key && (
                           <span className="text-[10px]">{order === "asc" ? "▲" : "▼"}</span>
@@ -460,46 +504,49 @@ export default function ProductsPage() {
                   <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</td>
                 </tr>
               )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">No products found</td>
-                </tr>
-              )}
+              {!loading && rows.length === 0 && null}
               {!loading && rows.map((r) => (
                 <tr key={String(r.id)} className="border-t border-gray-200/60 dark:border-white/10">
-                  <td className="px-4 py-3 font-medium">{r.id}</td>
-                  <td className="px-4 py-3">
-                    <div className="max-w-xs">
-                      <div className="font-medium truncate" title={r.name}>{r.name}</div>
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.id}</span></td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="max-w-xs mx-auto">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate" title={r.name}>{r.name}</div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-mono text-sm">{r.sku || "—"}</td>
-                  <td className="px-4 py-3 font-mono text-sm">{r.barcode || "—"}</td>
-                  <td className="px-4 py-3 font-medium">{r.price != null ? `$${Number(r.price).toFixed(2)}` : "—"}</td>
-                  <td className="px-4 py-3">{r.cost_price != null ? `$${Number(r.cost_price).toFixed(2)}` : "—"}</td>
-                  <td className="px-4 py-3 font-medium">{r.quantity_in_stock ?? r.stock ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {categories.find(c => c.id == r.category_id)?.name || r.category_id || "—"}
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{r.sku || "—"}</span></td>
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{r.barcode || "—"}</span></td>
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.price != null ? `$${Number(r.price).toFixed(2)}` : "—"}</span></td>
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.cost_price != null ? `$${Number(r.cost_price).toFixed(2)}` : "—"}</span></td>
+                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.quantity_in_stock ?? r.stock ?? "—"}</span></td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {categories.find(c => c.id == r.category_id)?.name || r.category_id || "—"}
+                    </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {r.supplier_name || "—"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
                     <span className={cn(
                       "inline-flex items-center rounded-xl px-2 py-1 text-xs font-medium",
                       (r.status || "active") === "active" && "bg-emerald-500/10 text-emerald-500",
                       (r.status || "active") === "archived" && "bg-gray-500/10 text-gray-500"
                     )}>{r.status || "active"}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
                       <button 
                         onClick={() => setEditing(r)} 
-                        className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                        className="rounded-lg p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all duration-200"
                         title="Edit product"
                       >
                         <Icon.Edit className="h-3.5 w-3.5" />
                       </button>
                       <button 
                         onClick={() => setDeleting(r)} 
-                        className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10"
+                        className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
                         title="Delete product"
                       >
                         <Icon.Trash className="h-3.5 w-3.5" />
@@ -511,6 +558,13 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {!loading && rows.length === 0 && (
+          <div className="text-center py-12">
+            <Icon.Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No products found</p>
+          </div>
+        )}
 
         {/* Footer row: error + pagination */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/60 bg-white/60 p-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
@@ -524,13 +578,7 @@ export default function ProductsPage() {
       </div>
     </div>
 
-      {/* Create modal */}
-      <Modal open={creating} onClose={()=>setCreating(false)}>
-        <ProductForm
-          onCancel={()=>setCreating(false)}
-          onSaved={async()=>{ setCreating(false); await fetchList(); }}
-        />
-      </Modal>
+      
 
       {/* Edit modal */}
       <Modal open={Boolean(editing)} onClose={()=>setEditing(null)}>
@@ -543,17 +591,15 @@ export default function ProductsPage() {
         )}
       </Modal>
 
-      {/* Delete confirm */}
-      <Modal open={Boolean(deleting)} onClose={()=>setDeleting(null)}>
-        <div className="space-y-4">
-          <h3 className="text-base font-semibold">Delete product</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300">Are you sure you want to delete <span className="font-medium">{deleting?.name}</span>? This action cannot be undone.</p>
-          <div className="flex items-center justify-end gap-2">
-            <button onClick={()=>setDeleting(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/10">Cancel</button>
-            <button onClick={async()=>{ if (!deleting) return; await deleteProduct(deleting); setDeleting(null); await fetchList(); }} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">Delete</button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Delete Product"
+        description={`Are you sure you want to delete ${deleting?.name || ''}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={async () => { if (!deleting) return; const p = deleting; setDeleting(null); await deleteProduct(p); await fetchList(); }}
+        onClose={() => setDeleting(null)}
+      />
 
       {/* Recycle Bin Modal */}
       <Modal open={recycleBinOpen} onClose={() => setRecycleBinOpen(false)}>
@@ -563,8 +609,8 @@ export default function ProductsPage() {
             <div className="flex items-center gap-2">
               {deletedProducts.length > 0 && (
                 <button
-                  onClick={() => setClearBinConfirm(true)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600 transition-colors"
+                  onClick={() => { setClearResult(null); setClearConfirmText(""); setClearBinConfirm(true); }}
+                  className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:from-rose-700 hover:to-red-700 transition-colors"
                   title="Clear all deleted products"
                 >
                   <Icon.Trash className="h-3 w-3" />
@@ -581,6 +627,16 @@ export default function ProductsPage() {
               </button>
             </div>
           </div>
+          {clearResult && (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
+              {clearResult.message || "Recycle bin cleared."}
+              {clearResult.details && (
+                <div className="mt-1 text-xs opacity-80">
+                  Deleted: {clearResult.details.deleted} • Blocked: {clearResult.details.blocked}
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="flex-1 overflow-y-auto">
             {deletedProductsLoading ? (
@@ -625,10 +681,21 @@ export default function ProductsPage() {
       <Modal open={clearBinConfirm} onClose={() => setClearBinConfirm(false)}>
         <div className="space-y-4">
           <h3 className="text-base font-semibold">Clear Recycle Bin</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Are you sure you want to permanently delete all {deletedProducts.length} items in the recycle bin? 
-            This action cannot be undone and will permanently remove all deleted products.
-          </p>
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+            <p>
+              This will permanently delete all {deletedProducts.length} product(s) currently in the recycle bin.
+              Items referenced by orders or purchase orders will be skipped automatically.
+            </p>
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+              To confirm, type <span className="font-semibold">confirm</span> below.
+            </div>
+            <input
+              value={clearConfirmText}
+              onChange={(e)=>setClearConfirmText(e.target.value)}
+              placeholder="Type confirm to proceed"
+              className="w-full rounded-xl border border-gray-200 bg-white/70 px-3 py-2 text-sm outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+          </div>
           <div className="flex items-center justify-end gap-2">
             <button 
               onClick={() => setClearBinConfirm(false)} 
@@ -637,20 +704,25 @@ export default function ProductsPage() {
               Cancel
             </button>
             <button 
+              disabled={clearConfirmText.trim().toLowerCase() !== 'confirm' || clearingBin}
               onClick={async () => {
                 try {
-                  await clearRecycleBin();
+                  setClearingBin(true);
+                  const result = await clearRecycleBin();
+                  setClearResult(result);
                   setClearBinConfirm(false);
-                  setRecycleBinOpen(false);
                   await fetchDeletedProducts();
                   await fetchList();
                 } catch (error) {
                   console.error("Failed to clear recycle bin:", error);
+                } finally {
+                  setClearingBin(false);
                 }
               }} 
-              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+              className={cn("rounded-xl px-4 py-2 text-sm font-medium text-white",
+                clearConfirmText.trim().toLowerCase() === 'confirm' && !clearingBin ? "bg-rose-600 hover:bg-rose-700" : "bg-rose-400/60 cursor-not-allowed")}
             >
-              Clear All
+              {clearingBin ? "Clearing..." : "Clear All"}
             </button>
           </div>
         </div>

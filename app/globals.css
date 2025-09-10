@@ -12,11 +12,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {
@@ -97,6 +95,14 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Unified table typography */
+.table-typography tbody tr td,
+.table-typography tbody tr th,
+.table-typography thead tr th {
+  font-size: 0.9rem; /* ~14px */
+  font-weight: 500;
+}
+
 /* Remove number input arrows globally */
 input[type="number"] {
   -moz-appearance: textfield;
@@ -116,9 +122,151 @@ select option {
   color: black;
 }
 
-@media (prefers-color-scheme: dark) {
-  select option {
-    background-color: #1f2937;
-    color: white;
-  }
+.dark select option {
+  background-color: #1f2937;
+  color: white;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+[dir="rtl"] .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+[dir="rtl"] .ml-4 {
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+[dir="rtl"] .mr-4 {
+  margin-right: 0;
+  margin-left: 1rem;
+}
+
+/* RTL specific adjustments for navbar - Keep navbar completely unchanged */
+[dir="rtl"] .navbar-actions {
+  flex-direction: row !important;
+}
+
+/* Keep navbar content in original layout */
+[dir="rtl"] header {
+  direction: ltr !important;
+}
+
+[dir="rtl"] header * {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Keep navbar flex layouts in original direction */
+[dir="rtl"] header .flex {
+  flex-direction: row !important;
+}
+
+/* Keep navbar margins and padding as original */
+[dir="rtl"] header .ml-auto {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
+[dir="rtl"] header .mr-auto {
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+[dir="rtl"] header .pl-4 {
+  padding-left: 1rem !important;
+  padding-right: 0 !important;
+}
+
+[dir="rtl"] header .pr-4 {
+  padding-right: 1rem !important;
+  padding-left: 0 !important;
+}
+
+/* RTL adjustments for sidebar - Keep sidebar completely unchanged */
+[dir="rtl"] .sidebar {
+  /* Keep sidebar exactly as it is - no RTL changes */
+  left: 0.5rem !important;
+  right: auto !important;
+  direction: ltr !important;
+}
+
+/* Ensure sidebar content stays in original layout */
+[dir="rtl"] .sidebar * {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Keep sidebar flex layouts in original direction */
+[dir="rtl"] .sidebar .flex {
+  flex-direction: row !important;
+}
+
+/* Keep sidebar margins and padding as original */
+[dir="rtl"] .sidebar .ml-auto {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
+[dir="rtl"] .sidebar .mr-auto {
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+[dir="rtl"] .sidebar .pl-4 {
+  padding-left: 1rem !important;
+  padding-right: 0 !important;
+}
+
+[dir="rtl"] .sidebar .pr-4 {
+  padding-right: 1rem !important;
+  padding-left: 0 !important;
+}
+
+/* RTL adjustments for tables */
+[dir="rtl"] table th,
+[dir="rtl"] table td {
+  text-align: right;
+}
+
+[dir="rtl"] table th:first-child,
+[dir="rtl"] table td:first-child {
+  text-align: right;
+}
+
+[dir="rtl"] table th:last-child,
+[dir="rtl"] table td:last-child {
+  text-align: left;
 }

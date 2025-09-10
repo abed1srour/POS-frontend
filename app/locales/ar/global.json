@@ -1,0 +1,69 @@
+{
+  "common": {
+    "dashboard": "لوحة التحكم",
+    "products": "المنتجات",
+    "categories": "الفئات",
+    "suppliers": "الموردون",
+    "customers": "العملاء",
+    "orders": "الطلبات",
+    "payments": "المدفوعات",
+    "company_payments": "مدفوعات الشركة",
+    "purchase_orders": "أوامر الشراء",
+    "inventory": "المخزون",
+    "employees": "الموظفون",
+    "invoices": "الفواتير",
+    "warranties": "الضمانات",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "loading": "جاري التحميل...",
+    "no_data": "لا توجد بيانات",
+    "error": "خطأ",
+    "success": "نجح",
+    "confirm": "تأكيد",
+    "yes": "نعم",
+    "no": "لا"
+  },
+  "navigation": {
+    "sales": "المبيعات",
+    "purchases": "المشتريات",
+    "inventory_management": "إدارة المخزون",
+    "people": "الأشخاص",
+    "reports": "التقارير"
+  },
+  "dashboard": {
+    "welcome": "مرحباً بك في نظام نقاط البيع",
+    "total_sales": "إجمالي المبيعات",
+    "total_orders": "إجمالي الطلبات",
+    "total_customers": "إجمالي العملاء",
+    "total_products": "إجمالي المنتجات"
+  },
+  "products": {
+    "add_product": "إضافة منتج",
+    "product_name": "اسم المنتج",
+    "price": "السعر",
+    "cost_price": "سعر التكلفة",
+    "stock": "المخزون",
+    "category": "الفئة",
+    "supplier": "المورد",
+    "sku": "رمز المنتج",
+    "barcode": "الباركود",
+    "description": "الوصف"
+  },
+  "orders": {
+    "order_id": "رقم الطلب",
+    "customer": "العميل",
+    "total_amount": "المبلغ الإجمالي",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "pending": "معلق",
+    "completed": "مكتمل",
+    "cancelled": "ملغي",
+    "processing": "قيد المعالجة"
+  }
+}
