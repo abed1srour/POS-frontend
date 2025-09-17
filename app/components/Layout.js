@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslation } from "../lib/useTranslation";
+import { api } from "../config/api";
 
 // ---------------- Icons ----------------
 const Icon = {
@@ -224,7 +225,7 @@ export default function Layout({ children, title = "POS System" }) {
         const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
         if (!token) return;
 
-        const res = await fetch("/api/company-settings", {
+        const res = await fetch(api("/api/company-settings"), {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
