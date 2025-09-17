@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Layout from "../../components/Layout";
-import { api, getAuthHeadersFromStorage } from "../config/api";
+import { api, getAuthHeadersFromStorage } from "../../config/api";
 
 /**
  * Order Creation page for the POS app

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout";
 import Link from "next/link";
-import { api, getAuthHeadersFromStorage } from "../config/api";
+import { api, getAuthHeadersFromStorage } from "../../config/api";
 
 // Icons
 const Icon = {

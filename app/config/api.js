@@ -57,9 +57,85 @@ export const getAuthHeadersFromStorage = () => {
   return getAuthHeaders(token);
 };
 
+/**
+ * Utility function for making authenticated API requests
+ * @param {string} path - API endpoint path
+ * @param {object} options - Fetch options (method, body, etc.)
+ * @returns {Promise} - Fetch promise
+ */
+export const apiRequest = async (path, options = {}) => {
+  const url = api(path);
+  const headers = {
+    ...getAuthHeadersFromStorage(),
+    ...options.headers,
+  };
+
+  const config = {
+    ...options,
+    headers,
+  };
+
+  return fetch(url, config);
+};
+
+/**
+ * Utility function for making GET requests
+ * @param {string} path - API endpoint path
+ * @param {object} options - Additional fetch options
+ * @returns {Promise} - Fetch promise
+ */
+export const apiGet = (path, options = {}) => {
+  return apiRequest(path, { method: 'GET', ...options });
+};
+
+/**
+ * Utility function for making POST requests
+ * @param {string} path - API endpoint path
+ * @param {object} data - Request body data
+ * @param {object} options - Additional fetch options
+ * @returns {Promise} - Fetch promise
+ */
+export const apiPost = (path, data, options = {}) => {
+  return apiRequest(path, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    ...options,
+  });
+};
+
+/**
+ * Utility function for making PUT requests
+ * @param {string} path - API endpoint path
+ * @param {object} data - Request body data
+ * @param {object} options - Additional fetch options
+ * @returns {Promise} - Fetch promise
+ */
+export const apiPut = (path, data, options = {}) => {
+  return apiRequest(path, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+    ...options,
+  });
+};
+
+/**
+ * Utility function for making DELETE requests
+ * @param {string} path - API endpoint path
+ * @param {object} options - Additional fetch options
+ * @returns {Promise} - Fetch promise
+ */
+export const apiDelete = (path, options = {}) => {
+  return apiRequest(path, { method: 'DELETE', ...options });
+};
+
 export default {
   api,
   getApiBase,
   getAuthHeaders,
   getAuthHeadersFromStorage,
+  apiRequest,
+  apiGet,
+  apiPost,
+  apiPut,
+  apiDelete,
 };
