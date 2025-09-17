@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { api, getAuthHeadersFromStorage } from "../config/api";
 
 /**
  * Professional Categories page for the POS app (matches dashboard theme).
@@ -23,8 +24,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
  * If you want to hit backend directly, set NEXT_PUBLIC_API_URL in .env.local
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ""; // empty means use Next proxy
-const api = (path) => (API_BASE ? `${API_BASE}${path}` : path);
+// API configuration is now imported from config/api.js
 
 // ---------------- Icons ----------------
 const Icon = {
@@ -140,13 +140,9 @@ export default function CategoriesPage() {
   const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
   // Fetch helpers
+  // Fetch helpers - now using centralized auth headers
   function authHeaders() {
-    const token = (typeof window !== "undefined" && (localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))) || "";
-    console.log("🔑 Auth token:", token ? "Present" : "Missing");
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    return getAuthHeadersFromStorage();
   }
 
   async function fetchList() {

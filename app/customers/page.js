@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import { useRouter } from "next/navigation";
+import { api, getAuthHeadersFromStorage } from "../config/api";
 
 /**
  * Professional Customers page for the POS app (matches dashboard theme).

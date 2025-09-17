@@ -5,9 +5,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import PaymentDialog from "../components/PaymentDialog";
+import { api, getAuthHeadersFromStorage } from "../config/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
-const api = (path) => (API_BASE ? `${API_BASE}${path}` : path);
+// API configuration is now imported from config/api.js
 
 // Icons
 const Icon = {
