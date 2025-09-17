@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { api, getAuthHeadersFromStorage } from "../config/api";
 
 /**
  * Suppliers management page for the POS app
@@ -16,8 +17,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
  * - Search and filter suppliers
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
-const api = (path) => (API_BASE ? `${API_BASE}${path}` : path);
+// API configuration is now imported from config/api.js
 
 // ---------------- Icons ----------------
 const Icon = {
@@ -149,13 +149,9 @@ export default function SuppliersPage() {
   const offset = useMemo(() => (page - 1) * limit, [page, limit]);
   const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
-  // Fetch helpers
+  // Fetch helpers - now using centralized auth headers
   function authHeaders() {
-    const token = (typeof window !== "undefined" && (localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))) || "";
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    return getAuthHeadersFromStorage();
   }
 
   async function fetchList() {
