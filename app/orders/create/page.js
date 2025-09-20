@@ -235,7 +235,7 @@ function CreateOrderContent() {
     }
 
     // Check if product is out of stock
-    const availableStock = parseInt(product.quantity_in_stock || 0);
+    const availableStock = parseInt(product.quantity_in_stock || product.stock_quantity || product.stock || 0);
     if (availableStock <= 0) {
       setAlertMessage(`${product.name} is out of stock (${availableStock} units available). Cannot add to order.`);
       setShowCustomAlert(true);
@@ -262,7 +262,8 @@ function CreateOrderContent() {
         quantity: 1,
         discount_amount: 0,
         discount_type: "usd", // "usd" or "percent"
-        stock: product.quantity_in_stock || 0,
+        stock: product.quantity_in_stock || product.stock_quantity || product.stock || 0,
+        quantity_in_stock: product.quantity_in_stock || product.stock_quantity || product.stock || 0,
         category_name: categories.find(c => c.id == product.category_id)?.name || "No Category"
       };
       setOrderItems([...orderItems, newItem]);
@@ -373,7 +374,7 @@ function CreateOrderContent() {
     const stockIssues = [];
     for (const item of orderItems) {
       const quantity = parseInt(item.quantity);
-      const availableStock = parseInt(item.quantity_in_stock || 0);
+      const availableStock = parseInt(item.quantity_in_stock || item.stock || 0);
       
       if (quantity <= 0) {
         stockIssues.push(`${item.name}: Quantity must be greater than 0`);
