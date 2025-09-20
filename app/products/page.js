@@ -508,7 +508,11 @@ export default function ProductsPage() {
                   <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{r.barcode || "—"}</span></td>
                   <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.price != null ? `$${Number(r.price).toFixed(2)}` : "—"}</span></td>
                   <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.cost_price != null ? `$${Number(r.cost_price).toFixed(2)}` : "—"}</span></td>
-                  <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{r.quantity_in_stock ?? r.stock ?? "—"}</span></td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {r.stock ?? r.quantity_in_stock ?? r.stock_quantity ?? 0}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {categories.find(c => c.id == r.category_id)?.name || r.category_id || "—"}
@@ -516,7 +520,7 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {r.supplier_name || "—"}
+                      {r.supplier_name && r.supplier_name !== "null" ? r.supplier_name : "—"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
