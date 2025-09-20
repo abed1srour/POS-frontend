@@ -155,13 +155,12 @@ export default function InventoryPage() {
   }
 
   function exportCSV() {
-    const header = ["ID","Name","SKU","Current Stock","Reorder Level","Category","Supplier","Status"];
+    const header = ["ID","Name","SKU","Current Stock","Category","Supplier","Status"];
     const lines = rows.map(r => [
       r.id, 
       r.name, 
       r.sku, 
       r.quantity_in_stock || r.stock || 0,
-      r.reorder_level || 0,
       r.category_name || r.category_id,
       r.supplier_name || r.supplier_id,
       r.status || "active"
@@ -333,7 +332,6 @@ export default function InventoryPage() {
                     { key: "name", label: "Product Name", w: "w-64", align: "text-center" },
                     { key: "sku", label: "SKU", w: "w-32", align: "text-center" },
                     { key: "quantity_in_stock", label: "Current Stock", w: "w-32", align: "text-center" },
-                    { key: "reorder_level", label: "Reorder Level", w: "w-32", align: "text-center" },
                     { key: "category_id", label: "Category", w: "w-40", align: "text-center" },
                     { key: "supplier_name", label: "Supplier", w: "w-40", align: "text-center" },
                     { key: "status", label: "Status", w: "w-32", align: "text-center" },
@@ -357,20 +355,19 @@ export default function InventoryPage() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</td>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</td>
                   </tr>
                 )}
                 {!loading && rows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                       No products found
                     </td>
                   </tr>
                 )}
                 {!loading && rows.map((r) => {
                   const currentStock = r.quantity_in_stock || r.stock || 0;
-                  const reorderLevel = r.reorder_level || 0;
-                  const isLowStock = currentStock <= reorderLevel;
+                  const isLowStock = currentStock <= 10; // Use fixed low stock threshold of 10
                   
                   return (
                     <tr key={String(r.id)} className="border-t border-gray-200/60 dark:border-white/10">
@@ -392,7 +389,6 @@ export default function InventoryPage() {
                           <Icon.AlertTriangle className="inline h-3 w-3 ml-1 text-rose-500" />
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">{reorderLevel}</span></td>
                       <td className="px-4 py-3 text-center">
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           {r.category_name || r.category_id || "—"}

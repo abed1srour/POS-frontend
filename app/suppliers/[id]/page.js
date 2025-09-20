@@ -270,7 +270,7 @@ export default function SupplierDetailsPage() {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
                     <p className="font-bold text-gray-900 dark:text-white">
-                      ${purchaseOrders.reduce((total, order) => total + parseFloat(order.total || 0), 0).toFixed(2)}
+                      ${purchaseOrders.reduce((total, order) => total + parseFloat(order.total_amount || 0), 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export default function SupplierDetailsPage() {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Total Paid</p>
                     <p className="font-bold text-gray-900 dark:text-white">
-                      ${purchaseOrders.reduce((total, order) => total + parseFloat(order.payment_amount || 0), 0).toFixed(2)}
+                      ${purchaseOrders.reduce((total, order) => total + parseFloat(order.total_paid_amount || order.payment_amount || 0), 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -289,8 +289,8 @@ export default function SupplierDetailsPage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Balance</p>
                     <p className="font-bold text-red-600 dark:text-red-400">
                       ${purchaseOrders.reduce((total, order) => {
-                        const orderTotal = parseFloat(order.total || 0);
-                        const orderPaid = parseFloat(order.payment_amount || 0);
+                        const orderTotal = parseFloat(order.total_amount || 0);
+                        const orderPaid = parseFloat(order.total_paid_amount || order.payment_amount || 0);
                         return total + Math.max(0, orderTotal - orderPaid);
                       }, 0).toFixed(2)}
                     </p>
@@ -376,8 +376,8 @@ export default function SupplierDetailsPage() {
                 </thead>
                 <tbody>
                   {purchaseOrders.slice(0, 5).map((order) => {
-                    const totalAmount = parseFloat(order.total || 0);
-                    const totalPaid = parseFloat(order.payment_amount || 0);
+                    const totalAmount = parseFloat(order.total_amount || 0);
+                    const totalPaid = parseFloat(order.total_paid_amount || order.payment_amount || 0);
                     const balance = Math.max(0, totalAmount - totalPaid);
                     const isPaid = totalPaid >= totalAmount;
                     
