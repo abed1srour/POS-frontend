@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { api, getAuthHeadersFromStorage } from "../config/api";
@@ -101,12 +102,14 @@ function Modal({ open, onClose, children }) {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
+  
   // Query state
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("id");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
+  const [limit, setLimit] = useState(10);
   const [category, setCategory] = useState("");
 
   // Handle URL search query from layout
@@ -169,7 +172,18 @@ export default function ProductsPage() {
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
       setRows(data.data || data || []);
-      setTotal(data.pagination?.total ?? (data.data ? data.data.length : 0));
+      const totalCount = data.pagination?.total ?? (data.data ? data.data.length : 0);
+      setTotal(totalCount);
+      
+      // Debug pagination
+      console.log('📄 Pagination Debug:', {
+        total: totalCount,
+        pagination: data.pagination,
+        currentPage: page,
+        limit: limit,
+        calculatedPages: Math.ceil(totalCount / limit),
+        dataLength: (data.data || []).length
+      });
     } catch (e) {
       setErr(e?.message || "Failed to load");
     } finally {
@@ -565,9 +579,25 @@ export default function ProductsPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/60 bg-white/60 p-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
           <div className="min-h-[20px] text-rose-500">{err}</div>
           <div className="flex items-center gap-2">
-            <button disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-xl border border-gray-200 px-3 py-1.5 disabled:opacity-50 dark:border-white/10">Prev</button>
-            <span className="tabular-nums">Page {page} / {pages}</span>
-            <button disabled={page>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))} className="rounded-xl border border-gray-200 px-3 py-1.5 disabled:opacity-50 dark:border-white/10">Next</button>
+            <button 
+              disabled={page<=1} 
+              onClick={()=>setPage(p=>Math.max(1,p-1))} 
+              className="rounded-xl border border-gray-200 px-3 py-1.5 disabled:opacity-50 dark:border-white/10"
+              title={page<=1 ? "Already on first page" : "Go to previous page"}
+            >
+              Prev
+            </button>
+            <span className="tabular-nums" title={`Total: ${total} products, ${limit} per page`}>
+              Page {page} / {pages}
+            </span>
+            <button 
+              disabled={page>=pages} 
+              onClick={()=>setPage(p=>Math.min(pages,p+1))} 
+              className="rounded-xl border border-gray-200 px-3 py-1.5 disabled:opacity-50 dark:border-white/10"
+              title={page>=pages ? "Already on last page" : "Go to next page"}
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
