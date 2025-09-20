@@ -25,6 +25,12 @@ export async function GET(request) {
     backendParams.append('sort', sort);
     backendParams.append('order', order);
     
+    // Forward all query parameters including pagination
+    const offset = searchParams.get('offset') || '0';
+    const q = searchParams.get('q');
+    backendParams.append('offset', offset);
+    
+    if (q) backendParams.append('q', q);
     if (category_id) backendParams.append('category_id', category_id);
     if (supplier_id) backendParams.append('supplier_id', supplier_id);
     if (search) backendParams.append('search', search);
