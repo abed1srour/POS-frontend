@@ -107,7 +107,7 @@ export default function CategoriesPage() {
   const [sort, setSort] = useState("id");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
 
   // Handle URL search query from layout
   useEffect(() => {
@@ -312,6 +312,7 @@ export default function CategoriesPage() {
               <option value={10} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">10 / page</option>
               <option value={25} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">25 / page</option>
               <option value={50} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">50 / page</option>
+              <option value={1000} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">All</option>
             </select>
 
             {/* Add Category Button */}

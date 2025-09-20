@@ -127,7 +127,7 @@ export default function CustomersPage() {
   const [sort, setSort] = useState("id");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
 
   // Handle URL search query from layout
   useEffect(() => {
