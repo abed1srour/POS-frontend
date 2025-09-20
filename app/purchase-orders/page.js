@@ -6,6 +6,7 @@ import Layout from "../components/Layout";
 import PaymentDialog from "../components/PaymentDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import StatusDialog from "../components/StatusDialog";
+import { formatDisplayId, IdDisplay } from "../utils/id-formatter";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 const api = (path) => (API_BASE ? `${API_BASE}${path}` : path);
@@ -147,10 +148,6 @@ export default function PurchaseOrdersPage() {
       
       const data = await res.json();
       const ordersData = data.data || data || [];
-      console.log("📋 Purchase orders API response:", data);
-      console.log("📦 Orders data:", ordersData);
-      console.log("📊 Pagination info:", data.pagination);
-      console.log("🔍 Orders being set:", ordersData.map(o => ({ id: o.id, status: o.status })));
       setOrders(ordersData);
       
       if (data.pagination) {
@@ -185,26 +182,17 @@ export default function PurchaseOrdersPage() {
 
   async function deletePurchaseOrder(orderId) {
     try {
-      console.log('🔧 Starting deletePurchaseOrder function');
-      console.log('📋 Order ID to delete:', orderId);
-      console.log('🔑 Auth headers:', authHeaders());
       
       setIsDeleting(true);
-      console.log(`🗑️ Attempting to delete purchase order: ${orderId}`);
-      
       const apiUrl = api(`/api/purchase-orders/${orderId}`);
-      console.log('🌐 API URL:', apiUrl);
       
       const res = await fetch(apiUrl, {
         method: "DELETE",
         headers: authHeaders(),
       });
       
-      console.log(`📡 Delete response status: ${res.status}`);
-      console.log(`📡 Delete response headers:`, Object.fromEntries(res.headers.entries()));
       
       if (res.status === 401) {
-        console.log('❌ Unauthorized - redirecting to login');
         return router.replace("/login");
       }
       
@@ -238,17 +226,12 @@ export default function PurchaseOrdersPage() {
       }
       
       const responseData = await res.json().catch(() => ({}));
-      console.log('✅ Delete response data:', responseData);
-      
-      console.log(`✅ Successfully deleted purchase order: ${orderId}`);
       setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
       setError(null);
       
       // Refresh the orders list to update pagination
-      console.log('🔄 Refreshing orders list...');
       fetchOrders();
     } catch (e) {
-      console.warn('Delete error:', e?.message);
       const emsg = e?.message || "Failed to delete purchase order";
       const msgLower = emsg.toLowerCase();
       if (msgLower.includes('remaining balance') || msgLower.includes('fully paid') || msgLower.includes('payment')) {
@@ -263,7 +246,6 @@ export default function PurchaseOrdersPage() {
         setError(emsg);
       }
     } finally {
-      console.log('🏁 Delete operation finished');
       setIsDeleting(false);
     }
   }
@@ -336,7 +318,6 @@ export default function PurchaseOrdersPage() {
   }, [supplierFilter, statusFilter, dateFilter, searchTerm]);
 
   useEffect(() => {
-    console.log('🔄 Component re-rendering, orders count:', orders.length);
     fetchOrders();
     if (supplierFilter) {
       fetchSupplierDetails(supplierFilter);
@@ -601,7 +582,9 @@ export default function PurchaseOrdersPage() {
                     
                     return (
                       <tr key={order.id} className="border-t border-gray-200/60 dark:border-white/10">
-                        <td className="px-6 py-4 text-center"><span className="text-sm text-gray-500 dark:text-gray-400">#{order.id}</span></td>
+                        <td className="px-6 py-4 text-center">
+                          <IdDisplay tableName="purchase_orders" id={order.id} showBadge={true} />
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <div className="min-w-0">
                             <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -668,7 +651,6 @@ export default function PurchaseOrdersPage() {
                             </button>
                             <button 
                               onClick={() => {
-                                console.log('🗑️ DELETE BUTTON CLICKED for order:', order.id);
                                 setDeletingOrder(order);
                               }}
                               disabled={order.status === 'received'}

@@ -119,7 +119,7 @@ export default function PaymentsPage() {
       if (methodFilter) params.set("payment_method", methodFilter);
       params.set("onlyOrders", "true");
 
-      console.log('Fetching payments with params:', params.toString()); // Debug log
+      // Debug log
 
       const res = await fetch(api(`/api/payments?${params.toString()}`), {
         headers: authHeaders(),
@@ -135,13 +135,12 @@ export default function PaymentsPage() {
       }
       
       const data = await res.json();
-      console.log('Payments data received:', data); // Debug log
+      // Debug log
       
       setPayments(data.data || data || []);
       setTotal(data.pagination?.total ?? (data.data ? data.data.length : 0));
-      
 
-      
+
     } catch (e) {
       console.error('Error fetching payments:', e);
       setError(e?.message || "Failed to load payments");

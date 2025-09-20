@@ -44,11 +44,9 @@ export async function GET(request) {
         const data = await response.json();
         return NextResponse.json(data);
       } else {
-        console.log(`Backend expenses returned ${response.status}`);
         return NextResponse.json({ error: 'Backend server error' }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend expenses connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     
@@ -88,14 +86,12 @@ export async function POST(request) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend expense creation returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend expense creation connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     

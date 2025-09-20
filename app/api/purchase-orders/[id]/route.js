@@ -28,11 +28,9 @@ export async function GET(request, { params }) {
         const data = await response.json();
         return NextResponse.json(data);
       } else {
-        console.log(`Backend purchase order ${id} returned ${response.status}`);
         return NextResponse.json({ error: 'Purchase order not found' }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend purchase order connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     
@@ -74,14 +72,12 @@ export async function PUT(request, { params }) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend purchase order update returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend purchase order update connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     
@@ -121,14 +117,12 @@ export async function DELETE(request, { params }) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend purchase order deletion returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend purchase order deletion connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     

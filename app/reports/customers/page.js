@@ -60,12 +60,12 @@ export default function CustomersReportPage() {
   function calculateTopCustomers(allOrders, customers) {
     // Ensure orders and customers are arrays
     if (!Array.isArray(allOrders)) {
-      console.warn('allOrders is not an array:', allOrders);
+
       return [];
     }
     
     if (!Array.isArray(customers)) {
-      console.warn('customers is not an array:', customers);
+
       return [];
     }
 

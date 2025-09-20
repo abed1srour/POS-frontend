@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { api, getAuthHeadersFromStorage } from "../config/api";
+import { formatDisplayId, IdDisplay } from "../utils/id-formatter";
 
 /**
  * Professional Products page for the POS app (matches dashboard theme).
@@ -167,8 +168,6 @@ export default function ProductsPage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
-      console.log("📦 Products API response:", data);
-      console.log("🔍 Sample product data:", data.data?.[0] || data?.[0]);
       setRows(data.data || data || []);
       setTotal(data.pagination?.total ?? (data.data ? data.data.length : 0));
     } catch (e) {
@@ -191,20 +190,15 @@ export default function ProductsPage() {
 
   async function fetchSuppliers() {
     try {
-      console.log("🔍 Fetching suppliers...");
       const res = await fetch(api("/api/suppliers"), { headers: authHeaders(), cache: "no-store" });
-      console.log("📡 Supplier API response status:", res.status);
       if (res.status === 401) {
         console.error("❌ Authentication failed - redirecting to login");
         return router.replace("/login");
       }
       if (res.ok) {
         const list = await res.json();
-        console.log("📦 Raw supplier data:", list);
         const data = Array.isArray(list?.data) ? list.data : list;
-        console.log("📋 Processed supplier data:", data);
         const suppliersData = data?.map((s) => ({ id: s.id, name: s.company_name })) || [];
-        console.log("🎯 Final suppliers array:", suppliersData);
         setSuppliers(suppliersData);
       } else {
         console.error("❌ Supplier API failed:", res.status, res.statusText);
@@ -647,7 +641,7 @@ export default function ProductsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{product.name}</div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        ID: {product.id} • Deleted: {new Date(product.deleted_at).toLocaleDateString()}
+                        <IdDisplay tableName="products" id={product.id} /> • Deleted: {new Date(product.deleted_at).toLocaleDateString()}
                       </div>
                     </div>
                     <button

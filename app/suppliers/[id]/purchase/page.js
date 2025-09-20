@@ -163,7 +163,6 @@ export default function SupplierPurchasePage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
-      console.log("Supplier data:", data); // Debug log
       setSupplier(data.data || data);
     } catch (e) {
       console.error("Supplier fetch error:", e); // Debug log
@@ -229,18 +228,6 @@ export default function SupplierPurchasePage() {
   const total = totalWithPurchasePrices + deliveryCost;
 
   // Debug logging for cart totals
-  console.log("🛒 Cart Debug:", {
-    cartItems: cart.map(item => ({
-      name: item.name,
-      purchasePrice: item.purchasePrice,
-      quantity: item.quantity,
-      total: item.total
-    })),
-    subtotal,
-    totalWithPurchasePrices,
-    deliveryCost,
-    total
-  });
 
   // Add product to cart
   function addProductToCart(product) {
@@ -414,18 +401,6 @@ export default function SupplierPurchasePage() {
       return;
     }
 
-    console.log("🛒 Starting purchase order creation...");
-    console.log("📦 Cart contents:", cart.map(item => ({
-      name: item.name,
-      sku: item.sku,
-      originalPrice: item.originalPrice,
-      purchasePrice: item.purchasePrice,
-      newPrice: item.newPrice,
-      quantity: item.quantity,
-      total: item.total,
-      isNewProduct: item.isNewProduct,
-      isExistingProduct: item.isExistingProduct
-    })));
 
     setSaving(true);
     setErr(null);
@@ -433,33 +408,18 @@ export default function SupplierPurchasePage() {
     try {
       // First, create any new products
       const newProducts = cart.filter(item => item.isNewProduct);
-      console.log("🆕 New products to create:", newProducts.length);
-      console.log("🆕 New products details:", newProducts.map(item => ({
-        name: item.name,
-        sku: item.sku,
-        selling_price: item.newProductData.selling_price,
-        cost_price: item.purchasePrice,
-        newPrice: item.newPrice,
-        quantity: item.quantity
-      })));
-      
+
+
       const createdProducts = [];
       
       // If there are no new products, we can skip the creation step
       if (newProducts.length === 0) {
-        console.log("ℹ️ No new products to create, proceeding with existing products only");
-        console.log("📦 Cart contains only existing products:", cart.filter(item => item.isExistingProduct).map(item => item.name));
+
+
       }
       
       for (const item of newProducts) {
         try {
-          console.log("🔍 Debug - Item data:", {
-            newProductData: item.newProductData,
-            selling_price: item.newProductData.selling_price,
-            purchasePrice: item.purchasePrice,
-            newPrice: item.newPrice,
-            finalPrice: item.newPrice || item.newProductData.selling_price
-          });
 
           const productData = {
             name: item.newProductData.name,
@@ -476,13 +436,6 @@ export default function SupplierPurchasePage() {
             status: item.newProductData.status
           };
 
-          console.log("📤 Sending product data to backend:", productData);
-          console.log("🔍 Price breakdown:");
-          console.log(`   - item.newPrice: ${item.newPrice}`);
-          console.log(`   - item.newProductData.selling_price: ${item.newProductData.selling_price}`);
-          console.log(`   - Final price being sent: ${productData.price}`);
-          console.log(`   - Cost being sent: ${productData.cost}`);
-          console.log(`   - Supplier ID being sent: ${productData.supplier_id}`);
 
           const res = await fetch(api("/api/products"), {
             method: "POST",
@@ -492,10 +445,8 @@ export default function SupplierPurchasePage() {
 
           if (res.ok) {
             const newProduct = await res.json();
-            console.log(`✅ Product "${item.name}" created successfully!`);
-            console.log(`📋 Backend response:`, newProduct);
-            console.log(`🔍 Backend returned product data:`, newProduct.data || newProduct);
-            
+
+
             const productId = newProduct.data?.id || newProduct.id;
             if (!productId) {
               console.error(`❌ No product ID returned for "${item.name}"`);
@@ -506,8 +457,8 @@ export default function SupplierPurchasePage() {
               oldId: item.productId,
               newId: productId
             });
-            console.log(`✅ Product "${item.name}" created with ID: ${productId}`);
-            console.log(`💰 Product "${item.name}" prices - Selling: $${productData.price}, Cost: $${productData.cost}`);
+
+
           } else {
             const errorData = await res.text();
             console.error(`❌ Failed to create product "${item.name}":`, errorData);
@@ -527,7 +478,7 @@ export default function SupplierPurchasePage() {
           // For new products, check if they were successfully created
           const createdProduct = createdProducts.find(cp => cp.oldId === item.productId);
           if (createdProduct) {
-            console.log(`✅ New product "${item.name}" successfully created with ID: ${createdProduct.newId}`);
+
             return { ...item, productId: createdProduct.newId };
           } else {
             console.error(`❌ New product "${item.name}" failed to create`);
@@ -535,20 +486,10 @@ export default function SupplierPurchasePage() {
           }
         } else {
           // For existing products, keep them as they are
-          console.log(`✅ Existing product "${item.name}" (ID: ${item.productId}) kept in cart`);
+
           return item;
         }
       }).filter(item => item !== null); // Remove items that failed to create
-
-      console.log("🔄 Updated cart with real product IDs:", updatedCart.map(item => ({
-        name: item.name,
-        productId: item.productId,
-        purchasePrice: item.purchasePrice,
-        quantity: item.quantity,
-        total: item.total,
-        isNewProduct: item.isNewProduct,
-        isExistingProduct: item.isExistingProduct
-      })));
 
       // Check if we have any items left
       if (updatedCart.length === 0) {
@@ -586,34 +527,17 @@ export default function SupplierPurchasePage() {
         delivery_checked: deliveryChecked
       };
 
-      console.log("🔍 Purchase order data being sent to backend:");
-      console.log("   - supplier_id:", purchaseOrder.supplier_id);
-      console.log("   - items count:", purchaseOrder.items.length);
-      console.log("   - items:", purchaseOrder.items);
-      console.log("   - subtotal:", purchaseOrder.subtotal);
-      console.log("   - total:", purchaseOrder.total);
-      console.log("   - total_amount:", purchaseOrder.total_amount);
-      console.log("   - delivery_checked:", purchaseOrder.delivery_checked);
 
-      console.log("📋 Final purchase order data:", purchaseOrder);
-      console.log("📊 Purchase order summary:");
-      console.log(`   - Total items: ${purchaseOrder.items.length}`);
-      console.log(`   - Subtotal: $${purchaseOrder.subtotal}`);
-      console.log(`   - Total: $${purchaseOrder.total}`);
-      console.log(`   - Delivery: ${purchaseOrder.delivery_checked ? 'Yes' : 'No'}`);
       if (purchaseOrder.delivery_checked) {
-        console.log(`   - Delivery amount: $${deliveryAmount}`);
+
       }
 
-      console.log("📤 Sending purchase order to backend...");
       const res = await fetch(api("/api/purchase-orders"), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify(purchaseOrder),
       });
 
-      console.log("📥 Purchase order creation response status:", res.status);
-      console.log("📥 Purchase order creation response headers:", Object.fromEntries(res.headers.entries()));
 
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) {
@@ -624,26 +548,23 @@ export default function SupplierPurchasePage() {
       }
 
       const createdPO = await res.json();
-      console.log("✅ Purchase order created successfully!");
-      console.log("📋 Created purchase order data:", createdPO);
-      console.log("🆔 Purchase order ID:", createdPO.data?.id || createdPO.id);
+
 
       // Mark the purchase order as received to update stock
       const purchaseOrderId = createdPO.data?.id || createdPO.id;
       if (purchaseOrderId) {
-        console.log("🔄 Marking purchase order as received...");
+
         const statusRes = await fetch(api(`/api/purchase-orders/${purchaseOrderId}/status`), {
           method: "PATCH",
           headers: authHeaders(),
           body: JSON.stringify({ status: 'received' }),
         });
 
-        console.log("📥 Status update response:", statusRes.status);
         if (statusRes.ok) {
-          console.log("✅ Purchase order marked as received, stock updated");
+
         } else {
           const statusError = await statusRes.text();
-          console.warn("⚠️ Failed to mark purchase order as received:", statusError);
+
         }
       } else {
         console.error("❌ No purchase order ID returned from creation");
@@ -651,9 +572,8 @@ export default function SupplierPurchasePage() {
 
       // Clear cart and redirect
       setCart([]);
-      console.log("🎉 Purchase order creation completed successfully!");
-      console.log("🔄 Redirecting to purchase orders page to verify creation...");
-      
+
+
       // Redirect to purchase orders page to verify the order was created
       router.push("/purchase-orders");
     } catch (e) {

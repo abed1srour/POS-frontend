@@ -80,7 +80,6 @@ export default function FinancialReportPage() {
       setLoading(true);
       setError(null);
       
-      console.log("🔄 Fetching financial data...");
       
       // Fetch only the data needed for financial reports
       const [ordersRes, expensesRes] = await Promise.all([
@@ -88,25 +87,16 @@ export default function FinancialReportPage() {
         fetch(api("/api/expenses?limit=1000"), { headers: authHeaders(), cache: "no-store" }),
       ]);
 
-      console.log("📡 API responses received");
-      console.log("Orders Response Status:", ordersRes.status);
-      console.log("Expenses Response Status:", expensesRes.status);
 
       const [ordersData, expensesData] = await Promise.all([
         ordersRes.json(),
         expensesRes.json(),
       ]);
 
-      console.log("📊 Raw API Data:");
-      console.log("Orders Data:", ordersData);
-      console.log("Expenses Data:", expensesData);
 
       const orders = Array.isArray(ordersData.data) ? ordersData.data : Array.isArray(ordersData) ? ordersData : [];
       const expenses = Array.isArray(expensesData.data) ? expensesData.data : Array.isArray(expensesData) ? expensesData : [];
 
-      console.log("🔍 Processed Data:");
-      console.log("Orders:", orders);
-      console.log("Expenses:", expenses);
 
       // Calculate financial metrics
       const totalRevenue = orders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
@@ -115,13 +105,6 @@ export default function FinancialReportPage() {
       const profitMargin = totalRevenue > 0 ? (profitLoss / totalRevenue) * 100 : 0;
       const averageOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
 
-      console.log("💰 Financial Metrics Calculated:");
-      console.log("Total Revenue:", totalRevenue);
-      console.log("Total Expenses:", totalExpenses);
-      console.log("Profit/Loss:", profitLoss);
-      console.log("Profit Margin:", profitMargin);
-      console.log("Average Order Value:", averageOrderValue);
-      console.log("Total Orders:", orders.length);
 
       setFinancialData({
         totalRevenue,

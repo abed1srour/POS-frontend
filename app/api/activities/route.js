@@ -29,11 +29,9 @@ export async function GET(request) {
         const data = await response.json();
         return NextResponse.json(data);
       } else {
-        console.log(`Backend activities returned ${response.status}`);
         return NextResponse.json({ error: 'Backend server error' }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log('Backend activities connection failed:', fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     

@@ -108,12 +108,10 @@ export default function PurchaseOrderDetailPage() {
       
       const data = await res.json();
       const orderData = data.data || data;
-      console.log('🔍 Purchase order data received:', orderData);
       setOrder(orderData);
       
       // Extract items from the order response
       if (orderData.items) {
-        console.log('📦 Order items:', orderData.items);
         setOrderItems(orderData.items);
       }
     } catch (e) {
@@ -142,7 +140,6 @@ export default function PurchaseOrderDetailPage() {
       if (!res.ok) throw new Error(`Failed to load payments (${res.status})`);
       
       const data = await res.json();
-      console.log('💰 Payments data received:', data);
       setPayments(data.data || data || []);
     } catch (e) {
       console.error("Failed to load payments:", e);
@@ -321,13 +318,11 @@ export default function PurchaseOrderDetailPage() {
     );
   }
 
-  console.log('🔍 Order data in render:', order);
   const totalAmount = parseFloat(order.total || 0);
   // Calculate total paid from payments array
   const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
   const balance = Math.max(0, totalAmount - totalPaid);
   const isPaid = totalPaid >= totalAmount;
-  console.log('💰 Calculated values:', { totalAmount, totalPaid, balance, isPaid, paymentsCount: payments.length });
 
   return (
     <Layout title={`Purchase Order #${order.id}`}>

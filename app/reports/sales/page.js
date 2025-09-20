@@ -56,24 +56,18 @@ export default function SalesReportPage() {
 
   // Calculate top products
   function calculateTopProducts(orderItems, products) {
-    console.log("🧮 Calculating top products...");
-    console.log("Input orderItems:", orderItems);
-    console.log("Input products:", products);
     
     // Ensure orderItems is an array
     if (!Array.isArray(orderItems)) {
-      console.warn('❌ orderItems is not an array:', orderItems);
       return [];
     }
 
     if (!Array.isArray(products)) {
-      console.warn('❌ products is not an array:', products);
       return [];
     }
 
     const productSales = {};
     orderItems.forEach((item, index) => {
-      console.log(`Processing order item ${index}:`, item);
       const productId = item.product_id;
       if (!productSales[productId]) {
         productSales[productId] = { quantity: 0, revenue: 0 };
@@ -85,10 +79,8 @@ export default function SalesReportPage() {
       productSales[productId].quantity += quantity;
       productSales[productId].revenue += revenue;
       
-      console.log(`Product ${productId}: +${quantity} units, +$${revenue} revenue`);
     });
 
-    console.log("📊 Product sales summary:", productSales);
 
     const result = Object.entries(productSales)
       .map(([productId, sales]) => {
@@ -99,12 +91,10 @@ export default function SalesReportPage() {
           sales: sales.quantity,
           revenue: sales.revenue,
         };
-        console.log(`Mapped product ${productId}:`, resultItem);
         return resultItem;
       })
       .sort((a, b) => b.revenue - a.revenue);
 
-    console.log("🏆 Final sorted result:", result);
     return result;
   }
 
@@ -113,7 +103,6 @@ export default function SalesReportPage() {
       setLoading(true);
       setError(null);
       
-      console.log("🔄 Fetching sales data...");
       
       // Fetch only the data needed for sales reports
       const [orderItemsRes, productsRes] = await Promise.all([
@@ -121,28 +110,18 @@ export default function SalesReportPage() {
         fetch(api("/api/products?limit=1000"), { headers: authHeaders(), cache: "no-store" }),
       ]);
 
-      console.log("📡 API responses received");
-      console.log("Order Items Response Status:", orderItemsRes.status);
-      console.log("Products Response Status:", productsRes.status);
 
       const [orderItemsData, productsData] = await Promise.all([
         orderItemsRes.json(),
         productsRes.json(),
       ]);
 
-      console.log("📊 Raw API Data:");
-      console.log("Order Items Data:", orderItemsData);
-      console.log("Products Data:", productsData);
 
       const orderItems = Array.isArray(orderItemsData.data) ? orderItemsData.data : Array.isArray(orderItemsData) ? orderItemsData : [];
       const products = Array.isArray(productsData.data) ? productsData.data : Array.isArray(productsData) ? productsData : [];
 
-      console.log("🔍 Processed Data:");
-      console.log("Order Items:", orderItems);
-      console.log("Products:", products);
 
       const topProductsData = calculateTopProducts(orderItems, products);
-      console.log("📈 Top Products Calculated:", topProductsData);
       
       setTopProducts(topProductsData);
     } catch (error) {

@@ -165,7 +165,7 @@ export default function WarrantiesPage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
-      console.log("Customers loaded:", data.data || data || []);
+
       setCustomers(data.data || data || []);
     } catch (e) {
       console.error("Failed to load customers:", e);
@@ -174,17 +174,17 @@ export default function WarrantiesPage() {
 
   async function fetchProducts() {
     try {
-      console.log("Fetching products from:", api("/api/products?limit=1000"));
+
       const res = await fetch(api("/api/products?limit=1000"), {
         headers: authHeaders(),
         cache: "no-store",
       });
-      console.log("Products API response status:", res.status);
+
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
-      console.log("Products API raw response:", data);
-      console.log("Products loaded:", data.data || data || []);
+
+
       setProducts(data.data || data || []);
     } catch (e) {
       console.error("Failed to load products:", e);
@@ -288,12 +288,7 @@ export default function WarrantiesPage() {
       : products;
 
     // Debug logging
-    console.log("Customers state:", customers);
-    console.log("Customer search term:", customerSearch);
-    console.log("Filtered customers:", filteredCustomers);
-    console.log("Products state:", products);
-    console.log("Product search term:", productSearch);
-    console.log("Filtered products:", filteredProducts);
+
 
     // Get selected customer and product names
     const selectedCustomer = customers.find(c => c.id == form.customer_id);

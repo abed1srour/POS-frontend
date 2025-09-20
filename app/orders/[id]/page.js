@@ -134,11 +134,11 @@ export default function ViewOrderPage() {
       if (res.status === 401) return router.replace("/login");
       if (!res.ok) throw new Error(`Failed to load order (${res.status})`);
       const data = await res.json();
-      console.log("Order data:", data.data); // Debug log
+      // Debug log
       
       // If we have items, try to fetch category information for each item
       if (data.data.items && data.data.items.length > 0) {
-        console.log("Order items:", data.data.items); // Debug log for items
+        // Debug log for items
         
         // Try to fetch category data for each item
         const itemsWithCategories = await Promise.all(
@@ -157,7 +157,7 @@ export default function ViewOrderPage() {
                   };
                 }
               } catch (error) {
-                console.log("Error fetching product data:", error);
+
               }
             }
             return item;
@@ -365,7 +365,6 @@ export default function ViewOrderPage() {
       setGeneratingReceipt(false);
     }
   }
-
 
 
   // Format date

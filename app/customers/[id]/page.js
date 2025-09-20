@@ -98,7 +98,6 @@ function cn(...classes) {
 }
 
 
-
 // Minimal modal component
 function Modal({ open, onClose, children }) {
   if (!open) return null;
@@ -158,7 +157,7 @@ export default function CustomerDetailsPage() {
 
   async function fetchOrders() {
     try {
-      console.log(`Fetching orders for customer ID: ${customerId}`);
+
       const res = await fetch(api(`/api/orders?customer_id=${customerId}&limit=50`), {
         headers: authHeaders(),
         cache: "no-store",
@@ -167,7 +166,7 @@ export default function CustomerDetailsPage() {
       if (!res.ok) throw new Error(`Failed to load orders (${res.status})`);
       const data = await res.json();
       const ordersData = data.data || data || [];
-      console.log(`Found ${ordersData.length} orders for customer ${customerId}:`, ordersData);
+
       setOrders(ordersData);
     } catch (e) {
       console.error("Failed to load orders:", e);
@@ -490,15 +489,7 @@ export default function CustomerDetailsPage() {
                     const isPaid = hasPaidStatus || remaining <= 0.01 || totalPaid >= totalAmount;
                     
                     // Debug logging
-                    console.log(`Order #${order.id}:`, {
-                      totalAmount,
-                      totalPaid,
-                      remaining,
-                      hasPaidStatus,
-                      isPaid,
-                      status: order.status
-                    });
-                    
+
                     return (
                       <tr key={order.id} className="border-t border-gray-200/60 dark:border-white/10">
                         <td className="px-6 py-4 font-medium">#{order.id}</td>

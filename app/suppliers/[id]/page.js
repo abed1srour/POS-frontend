@@ -162,7 +162,7 @@ export default function SupplierDetailsPage() {
 
   async function fetchPurchaseOrders() {
     try {
-      console.log(`Fetching purchase orders for supplier ID: ${supplierId}`);
+
       const res = await fetch(api(`/api/purchase-orders?supplier_id=${supplierId}&limit=50`), {
         headers: authHeaders(),
         cache: "no-store",
@@ -171,7 +171,7 @@ export default function SupplierDetailsPage() {
       if (!res.ok) throw new Error(`Failed to load purchase orders (${res.status})`);
       const data = await res.json();
       const ordersData = data.data || data || [];
-      console.log(`Found ${ordersData.length} purchase orders for supplier ${supplierId}:`, ordersData);
+
       setPurchaseOrders(ordersData);
     } catch (e) {
       console.error("Failed to load purchase orders:", e);

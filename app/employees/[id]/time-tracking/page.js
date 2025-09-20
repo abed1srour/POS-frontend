@@ -199,7 +199,7 @@ export default function EmployeeTimeTrackingPage() {
         throw new Error("Invalid clock out time format. Use HH:MM format (e.g., 17:30)");
       }
 
-      console.log("Submitting time entry:", formData); // Debug log
+      // Debug log
 
       const res = await fetch(api(`/api/employees/${employeeId}/time-entries`), {
         method: "POST",
@@ -475,7 +475,7 @@ export default function EmployeeTimeTrackingPage() {
     
     const timeString = `${hour24.toString().padStart(2, '0')}:${minute}`;
     
-    console.log(`Converting ${hour}:${minute} ${period} to ${timeString}`); // Debug log
+    // Debug log
     
     setFormData(prev => ({
       ...prev,

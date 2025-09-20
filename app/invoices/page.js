@@ -267,7 +267,7 @@ export default function InvoicesPage() {
         
         // If it's a 500 error, use test data as fallback
         if (res.status === 500) {
-          console.log('Using test receipts data as fallback');
+
           showToast("Using test data - payments API temporarily unavailable", "error");
           const testReceipts = [
             {
@@ -298,7 +298,7 @@ export default function InvoicesPage() {
       }
       
       const data = await res.json();
-      console.log('Payments data:', data); // Debug log
+      // Debug log
       
       setReceipts(data.data || data || []);
       setReceiptsTotal(data.pagination?.total ?? (data.data ? data.data.length : 0));
@@ -330,7 +330,7 @@ export default function InvoicesPage() {
       fetchList(); 
     } else {
       // Always use test data for receipts until API is stable
-      console.log('Loading receipts tab with test data');
+
       const testReceipts = [
         {
           id: 1,

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
+import { formatDisplayId, IdDisplay } from "../utils/id-formatter";
 import PaymentDialog from "../components/PaymentDialog";
 import { api, getAuthHeadersFromStorage } from "../config/api";
 
@@ -159,7 +160,7 @@ export default function OrdersPage() {
       // Add customer filter if specified
       if (customerFilter) {
         params.append('customer_id', customerFilter);
-        console.log(`Fetching orders for customer ID: ${customerFilter}`);
+
       }
       
       const res = await fetch(api(`/api/orders?${params.toString()}`), {
@@ -170,7 +171,7 @@ export default function OrdersPage() {
       if (!res.ok) throw new Error(`Failed to load orders (${res.status})`);
       const data = await res.json();
       const ordersData = data.data || data || [];
-      console.log(`Received ${ordersData.length} orders from backend:`, ordersData);
+
       setOrders(ordersData);
     } catch (e) {
       setError(e?.message || "Failed to load orders");
@@ -194,7 +195,6 @@ export default function OrdersPage() {
       setCustomerDetails(null);
     }
   }
-
 
 
   useEffect(() => {

@@ -29,14 +29,12 @@ export async function GET(request, { params }) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend invoice ${id} returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log(`Backend invoice ${id} connection failed:`, fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     
@@ -78,14 +76,12 @@ export async function PUT(request, { params }) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend invoice update ${id} returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log(`Backend invoice update ${id} connection failed:`, fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     
@@ -125,14 +121,12 @@ export async function DELETE(request, { params }) {
         return NextResponse.json(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.log(`Backend invoice delete ${id} returned ${response.status}:`, errorData);
         return NextResponse.json({ 
           error: errorData.message || 'Backend server error',
           details: errorData
         }, { status: response.status });
       }
     } catch (fetchError) {
-      console.log(`Backend invoice delete ${id} connection failed:`, fetchError.message);
       return NextResponse.json({ error: 'Backend server not available' }, { status: 503 });
     }
     

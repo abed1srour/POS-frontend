@@ -239,8 +239,6 @@ export default function SettingsPage() {
       }
       
       const result = await res.json();
-      console.log('✅ Settings saved successfully:', result);
-      
       setSaved(true);
       setSaveMessage("Settings saved successfully!");
       setShowSuccess(true);

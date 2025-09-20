@@ -39,8 +39,6 @@ function Modal({ open, onClose, children }) {
 
 // Payment Dialog Component
 export default function PaymentDialog({ order, customer, onClose, onSuccess, authHeaders, api }) {
-  console.log('🔍 PaymentDialog received order:', order);
-  console.log('🔍 PaymentDialog received customer:', customer);
   const [form, setForm] = useState({
     amount: "",
     payment_method: "cash",
@@ -85,9 +83,6 @@ export default function PaymentDialog({ order, customer, onClose, onSuccess, aut
         payment_date: form.payment_date,
         notes: form.notes
       };
-
-      console.log('💰 Creating payment with data:', paymentData);
-
       const res = await fetch(api('/api/payments'), {
         method: 'POST',
         headers: authHeaders(),
